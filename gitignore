@@ -3,6 +3,7 @@
 ._*
 *.swo
 *.swp
+*.swn
 .DS_Store
 .AppleDouble
 Thumbs.db

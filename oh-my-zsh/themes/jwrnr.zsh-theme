@@ -2,7 +2,7 @@
 
 local ret_status="%(?:%{$fg_bold[green]%}心:%{$fg_bold[red]%}心%s)"
 
-PROMPT='${ret_status}%{$fg_bold[green]%}%p %{$fg[cyan]%}%c %{$reset_color%}'
+PROMPT='${ret_status}%{$fg_bold[green]%}%p %m %{$fg[cyan]%}%c %{$reset_color%}'
 
 RPROMPT='%{$fg_bold[blue]%}$(git_prompt_info)%{$fg_bold[blue]%}%{$fg[blue]%} %t%{$reset_color%}%'
 
