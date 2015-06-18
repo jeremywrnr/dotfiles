@@ -1,9 +1,8 @@
 " mapping commands to reduce typos
-command WQA wqa
-command WQa wqa
-command Wqa wqa
+command WQA wq
+command WQa wq
+command Wqa wq
 command WQ wq
-command Wq wq
 command QA qa
 command Qa qa
 command W w
@@ -36,7 +35,7 @@ nmap m @
 nmap tn :tabnew<cr>
 nmap tc :tabclose<cr>
 
-" format all lines
+" format all lines, jump back, center
 nmap FG 1G=G``zz
 
 " trim any lines longer than 80 chars
@@ -49,11 +48,13 @@ nmap FP {jV}kJgqq{j
 nmap FV :set paste!<cr>
 
 " fix any whitepsace in open file
-nmap FW :FixWhitespace<cr>
+nmap FW :StripWhitespace<cr>
 
 " normal noremap alias mappings
 nnoremap Y y$
 nnoremap U <c-r>
+nnoremap <s-Up> yy2kp2jddkk
+nnoremap <s-Down> ddp
 nnoremap <Right> >>
 nnoremap <Left> <<
 nnoremap <s-x> za
@@ -61,18 +62,23 @@ nnoremap <c-a> ggVG<cr>
 nnoremap <c-y> :%y+<cr>
 
 " NT / easy motion mappings
-map <Leader>l <plug>NERDTreeTabsToggle<cr>
+map <silent> <Space>h :nohl<cr>
 map <Leader>f <Plug>(easymotion-s)
 map <Leader>s <Plug>(easymotion-s2)
 map <Space>j <Plug>(easymotion-j)
 map <Space>k <Plug>(easymotion-k)
-map <silent> <Space>h :nohl<cr>
 map  n <Plug>(easymotion-next)
 map  N <Plug>(easymotion-prev)
 nmap / <Plug>(easymotion-sn)
 omap / <Plug>(easymotion-tn)
 
 " insert mode remappings
-" inoremap jk <Esc>
+inoremap jk <Esc>
+inoremap kj <Esc>
 imap <s-tab> <c-d>
 imap <c-s> <esc>:w<cr>
+
+" f8 mapping for vim wordy
+noremap <silent> <F8> :<C-u>NextWordy<cr>
+xnoremap <silent> <F8> :<C-u>NextWordy<cr>
+inoremap <silent> <F8> <C-o>:NextWordy<cr>

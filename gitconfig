@@ -2,30 +2,32 @@
     name = Jeremy Warner
     email = jeremywrnr@gmail.com
 [alias]
+    s= status
+    a= add -A
+    c= commit -am
+    d= diff
+    t= tag -n9
+    lp= log -p
     lg= log --oneline --decorate --color --graph
     la= log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
     lol = log --graph --decorate --pretty=oneline --abbrev-commit
     lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
-    alias= config --get-regexp alias
-    last= log -p --max-count=1 --word-diff
-    open-remote = "!open $(git remote -v $@ | grep -o 'http\\S*' | head -1); :"
-    s= status
-    a= add -A
-    c= commit -am
-    d= difftool
+    dt= difftool
     br= branch
     co= checkout
     ps= push
     pl= pull
+    open = !open-remote
+    last= log -p --max-count=1 --word-diff
+    alias= config --get-regexp alias
 [push]
     default = simple
-[merge]
-    tool = vimdiff
 [diff]
-    tool = vimdiff
-    guitool = vimdiff
+    algorithm = minimal
+    compactionHeuristic = true
+    renames = true
 [difftool]
-	prompt = false
+    prompt = false
 [web]
     browser = chrome
 [github]
@@ -34,8 +36,8 @@
     browser = chrome
 [filter "media"]
     required = true
-	clean = git media clean %f
-	smudge = git media smudge %f
+    clean = git media clean %f
+    smudge = git media smudge %f
 [credential]
     helper = osxkeychain
 [color]
@@ -43,11 +45,24 @@
     diff = auto
     interactive = auto
     status = auto
+    ui = true
+[color "diff"]
+    old = red bold
+    new = green bold
+    frag = magenta bold
+    whitespace = red reverse
+[color "diff-highlight"]
+    oldNormal = red bold
+    oldHighlight = "red bold 52"
+    newNormal = "green bold"
+    newHighlight = "green bold 22"
 [filter "hawser"]
-	clean = git hawser clean %f
-	smudge = git hawser smudge %f
-	required = true
+    clean = git hawser clean %f
+    smudge = git hawser smudge %f
+    required = true
 [filter "lfs"]
-	clean = git lfs clean %f
-	smudge = git lfs smudge %f
-	required = true
+    clean = git lfs clean %f
+    smudge = git lfs smudge %f
+    required = true
+[core]
+    excludesfile = /Users/jeremywrnr/.gitignore_global

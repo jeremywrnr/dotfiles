@@ -5,7 +5,7 @@ if version > 580
         syntax reset
     endif
 endif
-let g:colors_name="skittles_berry"
+let g:colors_name="skittles"
 
 hi SpecialKey     ctermfg=235 guifg=#262626
 hi NonText        ctermfg=250 guifg=#bcbcbc

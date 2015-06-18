@@ -1,33 +1,3 @@
-"====[ Save back up of the current file ]======================================>
-nmap <silent>  <c-b>  :call SaveBackup()<CR>
-function SaveBackup ()
-    let b:backup_count = exists('b:backup_count') ? b:backup_count+1 : 1
-    return writefile(getline(1,'$'), bufname('%') . '_' . b:backup_count)
-endfunction
-
-
-"====[ Show when lines extend past column 80 "]================================>
-highlight ColorColumn ctermbg=magenta
-function! MarkMargin (on)
-    if exists('b:MarkMargin')
-        try
-            call matchdelete(b:MarkMargin)
-        catch /./
-        endtry
-        unlet b:MarkMargin
-    endif
-    if a:on
-        let b:MarkMargin = matchadd('ColorColumn', '\%82v', 100)
-    endif
-endfunction
-
-augroup MarkMargin
-    autocmd!
-    autocmd  BufEnter  *       :call MarkMargin(1)
-    autocmd  BufEnter  *.vp*   :call MarkMargin(0)
-augroup END
-
-
 "====[ Break long lines into shorter ones ]====================================>
 function ShortenLines()
     " search and truncate long lines
@@ -84,5 +54,4 @@ function PyIndentAutoCfg()
         call PySpacesCfg()
     endif
 endfunction
-
 

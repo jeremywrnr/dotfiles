@@ -1,89 +1,72 @@
-# Path to your oh-my-zsh installation.
-export ZSH=$HOME/.oh-my-zsh
+export ZSH=$HOME/.oh-my-zsh # Path to your oh-my-zsh installation.
+#setopt list_ambiguous # complete even when ambiguous
+#bindkey -v # Vi mode for text selection
 
-# Themes: Look in ~/.oh-my-zsh/themes/
-ZSH_THEME="jeremywrnr"
+COMPLETION_WAITING_DOTS="true" # display red dots whilst waiting for completion.
+ZSH_THEME="jwrnr" # Themes: Look in ~/.oh-my-zsh/themes/
+ENABLE_CORRECTION="true" # enable command auto-correction.
+HISTSIZE=100000 # use case-sensitive completion.
 
-# use case-sensitive completion.
-HISTSIZE=100000
-
-# enable command auto-correction.
-ENABLE_CORRECTION="true"
-
-# display red dots whilst waiting for completion.
-COMPLETION_WAITING_DOTS="true"
-
-# Uncomment if you want to disable marking untracked files under VCS as dirty.
-# This makes repository status check for large repositories much, much faster.
-# DISABLE_UNTRACKED_FILES_DIRTY="true"
-
-# Would you like to use another custom folder than $ZSH/custom?
-# ZSH_CUSTOM=/path/to/new-custom-folder
-
-# Which plugins would you like to load? (found in ~/.oh-my-zsh/plugins/*)
-# Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
-plugins=(git brew npm perl history-substring-search osx)
-
+# ~/.oh-my-zsh/plugins/*
+plugins=(brew npm git osx history-substring-search rake-completion)
 source $ZSH/oh-my-zsh.sh
 
-# User configuration
 
-export EDITOR='vim'
+# User configuration
+export EDITOR="vim"
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+export PATH="/usr/local/bin/cask:$PATH"
 export PATH="/usr/local/heroku/bin:$PATH"
-export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
-export PATH=/usr/texbin:/usr/local/bin/cask:$PATH
-export PATH=/usr/local/bin:/usr/local/sbin:~/bin:$PATH
-export PATH=$HOME/GitHub/util:$PATH
+export PATH="$HOME/GitHub/util:$PATH"
+export PATH="$HOME/.cargo/bin:$PATH"
+export PATH="$HOME/anaconda/bin:$PATH"
 export MANPATH="/usr/local/man:$MANPATH"
+export ARCHFLAGS="-arch x86_64"
 export LANG=en_US.UTF-8
 
-# Preferred settings for local and remote sessions
-if [[ -n $SSH_CONNECTION ]]; then
-    #sshed in
-    #export EDITOR='vim'
-else
-    #local session
-    #export EDITOR='vim'
-fi
-
-# Compilation flags
-export ARCHFLAGS="-arch x86_64"
-
-# ssh
-# export SSH_KEY_PATH="~/.ssh/dsa_id"
-
 # os dependent macros
-# http://stackoverflow.com/questions/394230/detect-the-os-from-a-bash-script
 if [[ "$OSTYPE" == "linux-gnu" ]]; then # linux dev
 
-    printf '[nix] '
     alias brew="sudo apt-get"
     alias vi="vim"
+    export DB="$HOME/Dropbox/todos"
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
 
-    printf '[osx] '
-    alias bfg="java -jar ~/Dropbox/library/system/mac-osx/dsk-image/bfg-1.11.8.jar"
-    alias brewup="brew update && brew upgrade --all && brew prune && brew cleanup && brew linkapps macvim"
+    alias ag="nocorrect ag"
+    alias arduino="/Applications/Arduino.app/Contents/MacOS/Arduino"
+    alias brewup="brew update && brew upgrade && brew prune && brew cleanup"
     alias brewvim="brew reinstall macvim && brew linkapps macvim"
+    alias clean-external="ls /Volumes | grep -v 'Macintosh HD' | xargs -I % sh -c 'cd /Volumes/% && sudo clean-usb'"
     alias chromedev="open -a \"Google Chrome\" --args --allow-file-access-from-files"
-    alias empty="sudo rm -rf ~/.Trash && clean-external && echo Trash emptied."
-    alias gdb="lldb"
+    alias decolor='sed -E "s/"$'\E'"\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g"'
+    alias empty="sudo rm -ri $HOME/.Trash && clean-external && echo Trash emptied."
+    alias frails="foreman run rails"
+    alias frake="foreman run rake" alias f="open ." alias git="hub"
+    #alias ls="exa --group-directories-first"
     alias nwifi="networksetup -setairportpower en0 off"
+    alias m4a2mp3='find . -name "*m4a" | sed -e "s/.m4a$//" | xargs -I % ffmpeg -i "%.m4a" -acodec libmp3lame -ab 320k "%.mp3"'
     alias sub="open -a Sublime\ Text"
     alias rmds="_ find /Users -type f -iname .DS_Store -exec rm -v {} \;"
-    alias vi="mvim -v"
-    alias vim="mvim -v"
-    alias web="nocorrect web"
+    alias rmbackup="while read line; do
+        sudo tmutil delete '/Volumes/jeremy-mac/Backups.backupdb/jeremywrnr_mbp/${line}'
+    done < <(ls /Volumes/jeremy-mac/Backups.backupdb/jeremywrnr_mbp | tail -r | tail -n +3)"
+    alias rwifi="nwifi && sleep 4 && ywifi"
+    alias vi='mvim'
+    alias vim='mvim'
+    alias web="nocorrect booker"
     alias ywifi="networksetup -setairportpower en0 on"
-    export DB=~/Dropbox/words/todo
-    export EDITOR="mvim -v"
-    export PYENV_ROOT=/usr/local/var/pyenv
-    export PATH=/Applications/Postgres.app/Contents/Versions/9.3/bin:$PATH
+
+    eval "$(fasd --init posix-alias zsh-hook)"
+    export DB=$HOME/Dropbox/todos
+    export FZF_DEFAULT_COMMAND='ag -g ""'
+    export PATH="/usr/local/texlive/2015basic/bin/x86_64-darwin:$PATH"
+    export PATH="$HOME/.node/bin:$PATH"
+    #export PATH="/Applications/Racket v6.2.1/bin:$PATH"
+    #export PATH="/Applications/Postgres.app/Contents/Versions/9.3/bin:$PATH"
 
 elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" ==  "msys" ]]; then #windoze
 
-    printf '[win] '
     alias vi="vim"
     export PATH=/cygdrive/c/Users/jeremywrnr/GitHub/dotfiles/util:$PATH
 
@@ -92,49 +75,60 @@ fi
 # common user aliases
 alias ....="cd ../../../"
 alias .....="cd ../../../../"
-alias c="cat <(printlabels) <(printlists) | less -R"
+alias bx="bundle exec"
+alias pg="cat $DB/to-plan | less -R"
 alias hi="pygmentize -g"
 alias clockme="clock -c -u jeremywrnr@gmail.com"
-alias clean_photo="chmod 644 *; mvext JPG jpg; mvext PNG png; cd ..; l"
-alias clean_video="chmod 644 *; mvext MP4 mp4; mvext AVI avi; mvext MOV mp4; cd ..; l"
+alias clean-photo="chmod 644 *; modname -e JPG jpg; modname -e PNG png; cd ..; l"
+alias clean-video="chmod 644 *; modname -e MP4 mp4; modname -e AVI avi; modname -e MOV mp4; cd ..; l"
 alias h='fc -l 1'
+alias fw='nocorrect fw'
 alias g="git"
-alias gi="vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"
+alias gi="\vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"
+alias gwc='git whatchanged -p --abbrev-commit --pretty=medium'
 alias glg="git log --pretty=format:'%C(yellow)%h %C(cyan)%ad%Cgreen%d %Creset%s' --date=short"
 alias gps="ps aux | grep "
 alias nyan="telnet nyancat.dakko.us"
+alias pipup="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip install -U"
 alias pingg="grc ping google.com"
-alias t="editsplit; ~/Dropbox/words/todo/store | less; c"
-alias rmicon="find ~/Google\ Drive -type f -iname 'Icon?' -exec rm -v {} \;"
-alias rmiconall="find ~/ -type f -iname 'Icon?' -exec rm -v {} \;"
-alias rmicondry="find ~/Google\ Drive -type f -iname 'Icon?'"
+alias sshot="screencapture -T 2 $HOME/Desktop/$(date +"%y-%m-%d@%H.%M.%S").png"
+alias qs="grep '^?'"
+alias rmswp="find . -type f -name '*swp' -exec rm -v {} \;; find . -type f -name '*swo' -exec rm -v {} \;"
+alias rmicon="find $HOME/Google\ Drive -type f -name 'Icon?' -exec rm -v {} \;"
+alias rmiconall="find $HOME/ -type f -name 'Icon?' -exec rm -v {} \;"
+alias rmicondry="find $HOME/Google\ Drive -type f -name 'Icon?'"
 alias tmuxcolors="for i in {0..255} ; do; printf \"\x1b[38;5;${i}mcolour${i}\n\"; done "
+alias vimup="\vim +PlugInstall +PlugUpdate +PlugUpgrade +qa"
+alias ycmup="cd $HOME/.vim/plugged/YouCompleteMe && git submodule update --init --recursive && ./install.py --clang-completer"
 alias zen="curl https://api.github.com/zen"
-alias zshrc="~/GitHub/util/zshrc_update; zshconfig"
-alias zshconfig="source ~/.zshrc"
-
-# user subaliases (used in above aliases, never direct)
-alias editsplit="vim $DB/to_plan.txt -c 'vsp $DB/to_do.txt'"
-alias clean-external="ls /Volumes | grep -v 'Macintosh HD' | xargs -I % sh -c 'cd /Volumes/% && sudo clean-usb'"
-alias printlabels="pr -m -t -w 150 $DB/td_lab.txt $DB/tp_lab.txt | grep . --color=always"
-alias printlists="pr -m -t -w 150 $DB/to_do.txt $DB/to_plan.txt"
+alias zshrc="$HOME/GitHub/util/zshrc-update; zshconfig"
+alias zshconfig="source $HOME/.zshrc"
 
 # listing files
+alias l="ls"
 alias sl="ls"
-alias l="ls -h"
-alias lh="ls -A | grep '^\.'"
-alias ll="ls -o"
+alias lh="ls -a | grep '^\.'"
+alias ll="ls -l"
+alias la="ls -a"
 alias lw="echo 'lines, words, chars, in files:'; ls -S | xargs wc"
-alias dudir="echo size in mb:; du -sm * | sort -nr"
-alias tre="tree"
+alias tre="tree -C"
 alias tree="tree -C"
+alias trim="awk 'length(\$0) < 120'"
 
 # location aliases
-alias gocl="cd ~/google\ drive/class"
-alias godot="cd ~/GitHub/dotfiles"
-alias gohub='cd ~/GitHub'
-alias gohk='cd ~/Dropbox/research/Jeremy-Philip-research-shared/hackathons'
-alias gowd="cd /Users/jeremywrnr/Dropbox/words"
+alias godot="cd $HOME/GitHub/dotfiles"
 
-# hello jeremy :)
-gshuf -n 1 "$DB/smile.txt"
+# junegunn fuzzy finder
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+# iterm tmux integration
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+
+# added by travis gem
+[ -f /Users/jwrnr/.travis/travis.sh ] && source /Users/jwrnr/.travis/travis.sh
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/jwrnr/Downloads/google-cloud-sdk/path.zsh.inc' ]; then source '/Users/jwrnr/Downloads/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/jwrnr/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then source '/Users/jwrnr/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
