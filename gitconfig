@@ -1,0 +1,53 @@
+[user]
+    name = Jeremy Warner
+    email = jeremywrnr@gmail.com
+[alias]
+    lg= log --oneline --decorate --color --graph
+    la= log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
+    lol = log --graph --decorate --pretty=oneline --abbrev-commit
+    lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+    alias= config --get-regexp alias
+    last= log -p --max-count=1 --word-diff
+    open-remote = "!open $(git remote -v $@ | grep -o 'http\\S*' | head -1); :"
+    s= status
+    a= add -A
+    c= commit -am
+    d= difftool
+    br= branch
+    co= checkout
+    ps= push
+    pl= pull
+[push]
+    default = simple
+[merge]
+    tool = vimdiff
+[diff]
+    tool = vimdiff
+    guitool = vimdiff
+[difftool]
+	prompt = false
+[web]
+    browser = chrome
+[github]
+    user = jeremywrnr
+[web]
+    browser = chrome
+[filter "media"]
+    required = true
+	clean = git media clean %f
+	smudge = git media smudge %f
+[credential]
+    helper = osxkeychain
+[color]
+    branch = auto
+    diff = auto
+    interactive = auto
+    status = auto
+[filter "hawser"]
+	clean = git hawser clean %f
+	smudge = git hawser smudge %f
+	required = true
+[filter "lfs"]
+	clean = git lfs clean %f
+	smudge = git lfs smudge %f
+	required = true

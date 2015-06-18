@@ -1,0 +1,12 @@
+# files to exclude from all repos
+
+._*
+*.swo
+*.swp
+.DS_Store
+.AppleDouble
+Thumbs.db
+*.sublime-*
+TODO
+TEMP_*
+.srvr*

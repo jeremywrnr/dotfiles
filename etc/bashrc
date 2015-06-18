@@ -1,0 +1,7 @@
+alias g='git'
+alias ls='ls -h --color=always'
+alias matlab='matlab -nodesktop -nosplash -r'
+alias vim='/c/Program\ Files\ \(x86\)/Vim/vim74/vim.exe'
+alias gvim='/c/Program\ Files\ \(x86\)/Vim/vim74/gvim.exe'
+alias subl='/c/Program\ Files/Sublime\ Text\ 3/sublime_text.exe'
+export PATH=/c/Program\ Files/Java/jdk1.7.0_51/bin:$PATH
