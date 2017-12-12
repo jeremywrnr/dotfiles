@@ -8,7 +8,7 @@ alias fr='foreman run'
 alias fs='foreman start'
 
 # jeremy dotfiles location
-DF="$HOME/GitHub/dotfiles"
+DF="$HOME/Code/dotfiles"
 
 # Linux specific
 alias pacman="sudo pacman"

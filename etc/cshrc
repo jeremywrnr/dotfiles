@@ -1,33 +1,13 @@
-# aliases
-alias g 'git'
+# CSHRC
+
 alias .. 'cd ../'
-alias ... 'cd ../../'
-alias .... 'cd ../../../'
-alias ..... 'cd ../../../../'
-alias md 'mkdir -p'
-alias matlab 'matlab -nodesktop -nosplash -r'
-alias gi 'vim .gitignore; git add .gitignore; git commit -m update gitignore'
+alias g 'git'
 alias gwc 'git whatchanged -p --abbrev-commit --pretty=medium'
 alias glg="git log --pretty=format:'%C(yellow)%h %C(cyan)%ad%Cgreen%d %Creset%s' --date=short"
-alias gps 'ps aux | grep'
-
-# listing files
 alias vi 'vim'
 alias ls 'ls -h --color=always'
-alias sl 'ls'
-alias l 'ls -h'
-alias la 'ls -ah'
-alias lh 'ls -A | grep ^\.'
 alias ll 'ls -o'
-alias lw 'echo lines, words, chars, in files:; ls -S | xargs wc'
-alias tre 'tree -C'
-alias tree 'tree -C'
 
-# location aliases
-alias gocl 'cd ~/csc-454/'
-alias godot 'cd ~/GitHub/dotfiles'
-
-# settings
 setenv EDITOR 'vim'
-set path = ($path /u/cs254/bin /home/hoover/u7/jwarn10/GitHub/util)
-#setenv PATH $PATH:/u/cs254/bin:/usr/bin
+
+# set path = ($path /home/hoover/u7/jwarn10/GitHub/util)

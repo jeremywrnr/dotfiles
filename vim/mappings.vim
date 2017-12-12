@@ -28,9 +28,6 @@ noremap <F5> :setlocal spell! spelllang=en_us<cr>
 " normal alias mappings
 nmap ; :
 
-" call macros
-nmap m @
-
 " managing tabs
 nmap tn :tabnew<cr>
 nmap tc :tabclose<cr>

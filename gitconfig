@@ -1,6 +1,10 @@
 [user]
-    name = Jeremy Warner
-    email = jeremywrnr@gmail.com
+	name = Jeremy Warner
+	email = jeremy.warner@autodesk.com
+[github]
+    user = jeremywrnr
+[credential]
+	helper = "osxkeychain "
 [alias]
     s= status
     a= add -A
@@ -20,26 +24,14 @@
     open = !open-remote
     last= log -p --max-count=1 --word-diff
     alias= config --get-regexp alias
+[core]
+    excludesFile = /Users/jwrnr/.gitignore
 [push]
-    default = simple
+    default = current
 [diff]
     algorithm = minimal
     compactionHeuristic = true
     renames = true
-[difftool]
-    prompt = false
-[web]
-    browser = chrome
-[github]
-    user = jeremywrnr
-[web]
-    browser = chrome
-[filter "media"]
-    required = true
-    clean = git media clean %f
-    smudge = git media smudge %f
-[credential]
-    helper = osxkeychain
 [color]
     branch = auto
     diff = auto
@@ -56,13 +48,3 @@
     oldHighlight = "red bold 52"
     newNormal = "green bold"
     newHighlight = "green bold 22"
-[filter "hawser"]
-    clean = git hawser clean %f
-    smudge = git hawser smudge %f
-    required = true
-[filter "lfs"]
-    clean = git lfs clean %f
-    smudge = git lfs smudge %f
-    required = true
-[core]
-    excludesfile = /Users/jeremywrnr/.gitignore_global
