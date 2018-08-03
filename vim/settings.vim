@@ -33,7 +33,7 @@ let g:goyo_width = 100
 let g:ctrlp_map = '<c-p>'
 let g:ctrlp_cmd = 'CtrlP'
 let g:ctrlp_use_caching = 0
-let g:prettier#autoformat = 0
+"let g:prettier#autoformat = 0
 let g:EasyMotion_smartcase = 1
 let g:EasyMotion_do_mapping = 0
 let g:ctrlp_custom_ignore = 'node_modules'
@@ -56,11 +56,11 @@ augroup formatNewCodeBuffer
     autocmd FileType eruby setlocal sw=2 ts=2 expandtab
     autocmd FileType html setlocal tabstop=2 shiftwidth=2
     autocmd FileType javascript setlocal shiftwidth=2 tabstop=2
-    autocmd FileType javascript setlocal formatprg=prettier\ --stdin
+    "autocmd FileType javascript setlocal formatprg=prettier\ --stdin
     autocmd FileType python setlocal expandtab shiftwidth=4 softtabstop=4
     autocmd BufNewFile,BufRead *.html setlocal nowrap
 
     " even prettier
-    autocmd BufWritePre *.js,*.jsx,*.mjs,*.ts,*.tsx,*.css,*.less,*.scss,*.json,*.graphql,*.vue PrettierAsync
+    "autocmd BufWritePre *.js,*.jsx,*.mjs,*.ts,*.tsx,*.css,*.less,*.scss,*.json,*.graphql,*.vue PrettierAsync
 augroup end
 

@@ -47,14 +47,34 @@ Plug 'kchmck/vim-coffee-script'
 Plug 'LaTeX-Box-Team/LaTeX-Box'
 Plug 'mustache/vim-mustache-handlebars'
 
+" this plugin is accursed.
+Plug 'Valloric/YouCompleteMe'
+
 " post installs
+"Plug 'prettier/vim-prettier', {
+  "\ 'do': 'yarn install',
+  "\ 'for': ['javascript', 'typescript', 'css', 'less', 'scss', 'json', 'graphql', 'vue'] }
 Plug 'prettier/vim-prettier', {
   \ 'do': 'yarn install',
-  \ 'for': ['javascript', 'typescript', 'css', 'less', 'scss', 'json', 'graphql', 'vue'] }
+  \ 'branch': 'release/1.x',
+  \ 'for': [
+    \ 'javascript',
+    \ 'typescript',
+    \ 'css',
+    \ 'less',
+    \ 'scss',
+    \ 'json',
+    \ 'graphql',
+    \ 'markdown',
+    \ 'vue',
+    \ 'lua',
+    \ 'php',
+    \ 'python',
+    \ 'ruby',
+    \ 'html',
+    \ 'swift' ] }
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 
-" this plugin is accursed.
-"Plug 'Valloric/YouCompleteMe'
 " Fails on => fn
 "Plug 'w0rp/ale'
 "Plug 'lervag/vimtex'

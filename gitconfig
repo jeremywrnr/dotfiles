@@ -1,12 +1,9 @@
 [user]
-	name = Jeremy Warner
-	email = jeremy.warner@autodesk.com
-[github]
-    user = jeremywrnr
-[credential]
-	helper = "osxkeychain "
+    name  = Jeremy Warner
+    email = jeremywrnr@gmail.com
 [alias]
     s= status
+    as= all-status
     a= add -A
     c= commit -am
     d= diff
@@ -16,7 +13,7 @@
     la= log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
     lol = log --graph --decorate --pretty=oneline --abbrev-commit
     lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
-    dt= difftool
+    lb= link-branches
     br= branch
     co= checkout
     ps= push
@@ -24,8 +21,10 @@
     open = !open-remote
     last= log -p --max-count=1 --word-diff
     alias= config --get-regexp alias
-[core]
-    excludesFile = /Users/jwrnr/.gitignore
+    up = pull --rebase --autostash
+    ac= add-commit
+    acp= add-commit-push
+    puller= all-puller
 [push]
     default = current
 [diff]
@@ -48,3 +47,7 @@
     oldHighlight = "red bold 52"
     newNormal = "green bold"
     newHighlight = "green bold 22"
+[rebase]
+    autoStash = true
+[pull]
+    rebase = true
