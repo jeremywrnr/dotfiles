@@ -8,7 +8,7 @@ function ShortenLines()
 endfunction
 
 
-"====[ Things of python  ]====================================>
+"====[ python  ]====================================>
 " Set options if using spaces for indents (default).
 function PySpacesCfg()
     set expandtab
