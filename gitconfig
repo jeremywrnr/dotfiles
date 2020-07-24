@@ -8,8 +8,10 @@
     c= commit -am
     d= diff
     t= tag -n9
+    wc=log --numstat --oneline
     lp= log -p
     lg= log --oneline --decorate --color --graph
+    lgg=log --pretty=format:'%C(yellow)%h %C(cyan)%ad%Cgreen%d %Creset%s' --date=short
     la= log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
     lol = log --graph --decorate --pretty=oneline --abbrev-commit
     lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
@@ -25,6 +27,9 @@
     ac= add-commit
     acp= add-commit-push
     puller= all-puller
+    set-upstream = \
+        !git branch \
+        --set-upstream-to=origin/`git symbolic-ref --short HEAD`
 [push]
     default = current
 [diff]
@@ -51,3 +56,9 @@
     autoStash = true
 [pull]
     rebase = true
+[credential]
+    helper = osxkeychain
+[fetch]
+	prune = true
+[init]
+	defaultBranch = main
