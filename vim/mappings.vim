@@ -41,9 +41,6 @@ nmap FI :call ShortenLines()<cr>
 " format current paragraph
 nmap FP {jV}kJgqq{j
 
-" turn on paste mode
-nmap FV :set paste!<cr>
-
 " fix any whitepsace in open file
 nmap FW :StripWhitespace<cr>
 
@@ -58,7 +55,7 @@ nnoremap <s-x> za
 nnoremap <c-a> ggVG<cr>
 nnoremap <c-y> :%y+<cr>
 
-" NT / easy motion mappings
+" easymotion mappings
 map <silent> <Space>h :nohl<cr>
 map <Leader>f <Plug>(easymotion-s)
 map <Leader>s <Plug>(easymotion-s2)
@@ -75,7 +72,3 @@ inoremap kj <Esc>
 imap <s-tab> <c-d>
 imap <c-s> <esc>:w<cr>
 
-" f8 mapping for vim wordy
-noremap <silent> <F8> :<C-u>NextWordy<cr>
-xnoremap <silent> <F8> :<C-u>NextWordy<cr>
-inoremap <silent> <F8> <C-o>:NextWordy<cr>

@@ -1,7 +1,7 @@
 " vim-plug setup
 call plug#begin('~/.vim/plugged')
 
-" thank you tpope
+" github vim bundles
 Plug 'tpope/vim-git'
 Plug 'tpope/vim-rails'
 Plug 'tpope/vim-repeat'
@@ -9,8 +9,6 @@ Plug 'tpope/vim-markdown'
 Plug 'tpope/vim-fugitive'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-unimpaired'
-
-" github vim bundles
 Plug 'kien/ctrlp.vim'
 Plug 'ervandew/screen'
 Plug 'reedes/vim-wordy'
@@ -47,13 +45,7 @@ Plug 'kchmck/vim-coffee-script'
 Plug 'LaTeX-Box-Team/LaTeX-Box'
 Plug 'mustache/vim-mustache-handlebars'
 
-" this plugin is accursed.
-Plug 'Valloric/YouCompleteMe'
-
 " post installs
-"Plug 'prettier/vim-prettier', {
-  "\ 'do': 'yarn install',
-  "\ 'for': ['javascript', 'typescript', 'css', 'less', 'scss', 'json', 'graphql', 'vue'] }
 Plug 'prettier/vim-prettier', {
   \ 'do': 'yarn install',
   \ 'branch': 'release/1.x',
@@ -74,12 +66,6 @@ Plug 'prettier/vim-prettier', {
     \ 'html',
     \ 'swift' ] }
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
-
-" Fails on => fn
-"Plug 'w0rp/ale'
-"Plug 'lervag/vimtex'
-" some import error.
-"Plug 'Valloric/MatchTagAlways'
 
 " Add plugins to &runtimepath
 call plug#end()
