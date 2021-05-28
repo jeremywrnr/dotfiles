@@ -24,7 +24,7 @@ set notimeout ttimeout ttimeoutlen=200
 
 let mapleader = ','
 let g:rehash256 = 1
-let g:goyo_width = 100
+let g:goyo_width = 80
 let g:ctrlp_map = '<c-p>'
 let g:ctrlp_cmd = 'CtrlP'
 let g:ctrlp_use_caching = 0
