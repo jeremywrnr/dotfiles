@@ -12,7 +12,7 @@ source $ZSH/oh-my-zsh.sh
 
 # User configuration
 export EDITOR="vim"
-export TERM=screen-256color
+export TERM=xterm-256color
 export PATH="/usr/local/bin:$PATH"
 export PATH="/usr/local/share/python:$PATH"
 export PATH="$HOME/Library/Python/3.9/bin/$PATH"
