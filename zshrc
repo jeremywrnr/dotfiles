@@ -58,6 +58,7 @@ alias pipup="pip3 list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f
 alias python="python3"
 alias rmswp="find . -type f -name '*swp' -exec rm -v {} \;; find . -type f -name '*swo' -exec rm -v {} \;"
 alias rmicon="find . -type f -name 'Icon?' -exec rm -v {} \;"
+alias spice="yes | spicetify upgrade && yes | spicetify restore backup apply"
 alias sub="open -a Sublime\ Text"
 alias trim="awk 'length(\$0) < 120'"
 alias vimup="\vim +PlugInstall +PlugUpdate +PlugUpgrade +qa"
