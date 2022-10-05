@@ -51,10 +51,10 @@ alias h='fc -l 1'
 alias filecount="find . -type d -depth 1 -exec bash -c 'find \"{}\" -type f | wc -l | xargs printf \"| \$(tput setaf 2)%-16.16s\$(tput sgr0) | %d \n\" \$(basename {}) ' \; | awk '{print(\$NF\" \"\$0)}' | sort -k1,1 -n -r -t' ' | cut -f2- -d' ';"
 alias fw='nocorrect fw'
 alias godot="cd $CODEPATH/dotfiles"
+alias inkscape="/Applications/Inkscape.app/Contents/MacOS/inkscape"
 alias m4a2mp3='find . -name "*m4a" | sed -e "s/.m4a$//" | xargs -I % ffmpeg -i "%.m4a" -acodec libmp3lame -ab 320k "%.mp3"'
 alias npmup="ncu -g"
 alias path='echo -e ${PATH//:/\\n}'
-alias pipup="pip3 list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip3 install -U"
 alias python="python3"
 alias rmswp="find . -type f -name '*swp' -exec rm -v {} \;; find . -type f -name '*swo' -exec rm -v {} \;"
 alias rmicon="find . -type f -name 'Icon?' -exec rm -v {} \;"
