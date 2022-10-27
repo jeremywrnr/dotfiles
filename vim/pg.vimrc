@@ -1,4 +1,3 @@
-" .vimrc for Philip Guo <philip@pgbovine.net>
 " currently only works well for VIM 7.0 and above
 
 
