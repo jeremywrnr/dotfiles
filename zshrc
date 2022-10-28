@@ -96,8 +96,9 @@ alias tre="tree"
 
 # shell initialization
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-eval "$(rbenv init -)"
-export PATH="$HOME/.rbenv/bin:$PATH"
+source /usr/local/opt/chruby/share/chruby/chruby.sh
+source /usr/local/opt/chruby/share/chruby/auto.sh
+chruby ruby-3.1.2
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 if command -v pyenv 1>/dev/null 2>&1; then
