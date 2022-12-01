@@ -1,6 +1,18 @@
 [user]
     name  = Jeremy Warner
     email = jeremywrnr@gmail.com
+[credential]
+    helper = osxkeychain
+[push]
+    default = current
+[pull]
+    rebase = true
+[rebase]
+    autoStash = true
+[fetch]
+    prune = true
+[init]
+    defaultBranch = main
 [alias]
     s= status
     as= all-status
@@ -30,8 +42,6 @@
     set-upstream = \
         !git branch \
         --set-upstream-to=origin/`git symbolic-ref --short HEAD`
-[push]
-    default = current
 [diff]
     algorithm = minimal
     compactionHeuristic = true
@@ -52,13 +62,3 @@
     oldHighlight = "red bold 52"
     newNormal = "green bold"
     newHighlight = "green bold 22"
-[rebase]
-    autoStash = true
-[pull]
-    rebase = true
-[credential]
-    helper = osxkeychain
-[fetch]
-	prune = true
-[init]
-	defaultBranch = main
