@@ -29,7 +29,8 @@ Plug 'altercation/vim-colors-solarized'
 Plug 'editorconfig/editorconfig-vim'
 
 " aesthetics
-Plug 'nightsense/snow'
+"Plug 'nightsense/snow'
+Plug 'Mitgorakh/snow'
 Plug 'junegunn/goyo.vim'
 Plug 'junegunn/vim-emoji'
 
