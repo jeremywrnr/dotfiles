@@ -30,7 +30,8 @@ Plug 'editorconfig/editorconfig-vim'
 
 " aesthetics
 "Plug 'nightsense/snow'
-Plug 'Mitgorakh/snow'
+"Plug 'Mitgorakh/snow'
+Plug 'jeremywrnr/snow'
 Plug 'junegunn/goyo.vim'
 Plug 'junegunn/vim-emoji'
 
