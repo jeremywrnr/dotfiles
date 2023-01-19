@@ -32,6 +32,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
 
+    rm -rf ~/Creative\ Cloud\ Files
     alias ag="nocorrect ag"
     alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup"
     alias fast="speedtest"
@@ -99,27 +100,6 @@ alias tre="tree"
 source /usr/local/opt/chruby/share/chruby/chruby.sh
 source /usr/local/opt/chruby/share/chruby/auto.sh
 chruby ruby-3.1.2
-export PYENV_ROOT="$HOME/.pyenv"
-export PATH="$PYENV_ROOT/bin:$PATH"
-if command -v pyenv 1>/dev/null 2>&1; then
-  eval "$(pyenv init --path)"
-fi
 
 
-export PATH="$HOME/.poetry/bin:$PATH"
-
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/Users/jeremy/opt/anaconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/Users/jeremy/opt/anaconda3/etc/profile.d/conda.sh" ]; then
-        . "/Users/jeremy/opt/anaconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/Users/jeremy/opt/anaconda3/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-# <<< conda initialize <<<
-
+export PATH=/Users/jeremy/.meteor:$PATH
