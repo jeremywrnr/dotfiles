@@ -4,7 +4,7 @@ ZSH_THEME="jwrnr"              # Themes: Look in ~/.oh-my-zsh/themes/
 ENABLE_CORRECTION="true"       # enable command auto-correction.
 HISTSIZE=100000                # use case-sensitive completion.
 
-CODEPATH="$HOME/Documents/Code"
+CODEPATH="$HOME/Code"
 
 # ~/.oh-my-zsh/plugins/*
 plugins=(git macos history-substring-search)
@@ -102,4 +102,5 @@ source /usr/local/opt/chruby/share/chruby/auto.sh
 chruby ruby-3.1.2
 
 
+export PATH=/Users/jeremy/.meteor:$PATH
 export PATH=/Users/jeremy/.meteor:$PATH
