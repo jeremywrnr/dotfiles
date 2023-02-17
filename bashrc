@@ -9,6 +9,5 @@ export PATH="$PATH:$HOME/.rvm/bin"
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
-# added by travis gem
-[ ! -s /Users/jeremy/.travis/travis.sh ] || source /Users/jeremy/.travis/travis.sh
+# path
 . "$HOME/.cargo/env"
