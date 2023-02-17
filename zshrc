@@ -103,4 +103,3 @@ chruby ruby-3.1.2
 
 
 export PATH=/Users/jeremy/.meteor:$PATH
-export PATH=/Users/jeremy/.meteor:$PATH
