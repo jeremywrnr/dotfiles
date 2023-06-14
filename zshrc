@@ -34,6 +34,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     export PATH="$HOME/.rbenv/shims:$PATH"
     export PATH=/usr/local/cuda-11.7/bin${PATH:+:${PATH}}
     export LD_LIBRARY_PATH=/usr/local/cuda-11.7/lib64\ ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+    eval "$(fasd --init auto)"
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
 
