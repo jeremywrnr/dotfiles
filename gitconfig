@@ -1,4 +1,5 @@
 [user]
+    user  = jeremywrnr
     name  = Jeremy Warner
     email = jeremywrnr@gmail.com
 [credential]
@@ -39,9 +40,7 @@
     ac= add-commit
     acp= add-commit-push
     puller= all-puller
-    set-upstream = \
-        !git branch \
-        --set-upstream-to=origin/`git symbolic-ref --short HEAD`
+    set-upstream = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
 [diff]
     algorithm = minimal
     compactionHeuristic = true
@@ -63,7 +62,7 @@
     newNormal = "green bold"
     newHighlight = "green bold 22"
 [filter "lfs"]
-	process = git-lfs filter-process
-	required = true
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
