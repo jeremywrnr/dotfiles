@@ -103,3 +103,25 @@ chruby ruby-3.1.2
 
 
 export PATH=/Users/jeremy/.meteor:$PATH
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/Library/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/Library/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/Library/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/Library/miniconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+# Source nerfstudio autocompletions.
+if ! command -v compdef &> /dev/null; then
+    autoload -Uz compinit
+    compinit
+fi
+source /Users/jeremy/Code/sdfstudio/scripts/completions/setup.zsh
