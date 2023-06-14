@@ -48,7 +48,6 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     alias yvpn="launchctl load /Library/LaunchAgents/com.paloaltonetworks.gp.pangp*"
     alias nvpn="killall GlobalProtect & launchctl unload /Library/LaunchAgents/com.paloaltonetworks.gp.pangp*"
     eval "$(fasd --init posix-alias zsh-hook)"
-    export PATH=/Users/jeremy/.meteor:$PATH
     export FZF_DEFAULT_COMMAND='ag -g ""'
 
 fi
@@ -119,8 +118,6 @@ else
 fi
 unset __conda_setup
 # <<< conda initialize <<<
-
-export PATH=/Users/jeremy/.meteor:$PATH
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
