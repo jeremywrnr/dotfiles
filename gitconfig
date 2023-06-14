@@ -2,8 +2,6 @@
     user  = jeremywrnr
     name  = Jeremy Warner
     email = jeremywrnr@gmail.com
-[credential]
-    helper = osxkeychain
 [push]
     default = current
 [pull]

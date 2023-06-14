@@ -19,16 +19,21 @@ export PATH="$HOME/Library/Python/3.9/bin/$PATH"
 export PATH="$HOME/.meteor:$PATH"
 export PATH="$HOME/.bin:$PATH"
 export PATH="$CODEPATH/util:$PATH"
+export PATH=~/.npm-global/bin:$PATH
 export MANPATH="/usr/local/man:$MANPATH"
 export LANG=en_US.UTF-8
 
-# OS dependent macros
+# OS dependent configuration
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     alias brew="sudo apt-get"
     alias vi="vim"
+    alias pbcopy='xclip -selection clipboard'
+    alias pbpaste='xclip -selection clipboard -o'
     export PATH="$HOME/gems/bin:$PATH"
     export PATH="$HOME/.rbenv/shims:$PATH"
+    export PATH=/usr/local/cuda-11.7/bin${PATH:+:${PATH}}
+    export LD_LIBRARY_PATH=/usr/local/cuda-11.7/lib64\ ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
 
@@ -42,6 +47,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     alias yvpn="launchctl load /Library/LaunchAgents/com.paloaltonetworks.gp.pangp*"
     alias nvpn="killall GlobalProtect & launchctl unload /Library/LaunchAgents/com.paloaltonetworks.gp.pangp*"
     eval "$(fasd --init posix-alias zsh-hook)"
+    export PATH=/Users/jeremy/.meteor:$PATH
     export FZF_DEFAULT_COMMAND='ag -g ""'
 
 fi
@@ -97,10 +103,21 @@ alias tre="tree"
 
 # shell initialization
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-source /usr/local/opt/chruby/share/chruby/chruby.sh
-source /usr/local/opt/chruby/share/chruby/auto.sh
-chruby ruby-3.1.2
 
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/jeremy/Code/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/jeremy/Code/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/jeremy/Code/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/jeremy/Code/miniconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
 
 export PATH=/Users/jeremy/.meteor:$PATH
 
@@ -124,4 +141,5 @@ if ! command -v compdef &> /dev/null; then
     autoload -Uz compinit
     compinit
 fi
-source /Users/jeremy/Code/sdfstudio/scripts/completions/setup.zsh
+
+#source /Users/jeremy/Code/sdfstudio/scripts/completions/setup.zsh

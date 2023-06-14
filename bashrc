@@ -6,11 +6,12 @@ alias ls='ls -h --color=always'
 # exporting
 export EDITOR="vim"
 export PATH="$PATH:$HOME/.rvm/bin"
+export PATH=/home/jeremy/.meteor:$PATH
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
-# path
-. "$HOME/.cargo/env"
-
 # Source nerfstudio autocompletions.
-source /Users/jeremy/Code/sdfstudio/scripts/completions/setup.bash
+#source /Users/jeremy/Code/sdfstudio/scripts/completions/setup.bash
+
+# rust
+#. "$HOME/.cargo/env"
