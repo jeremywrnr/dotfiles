@@ -124,3 +124,5 @@ if ! command -v compdef &> /dev/null; then
     autoload -Uz compinit
     compinit
 fi
+
+conda deactivate # (don't default activate)
