@@ -97,12 +97,6 @@ alias tre="tree"
 
 # shell initialization
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-source /usr/local/opt/chruby/share/chruby/chruby.sh
-source /usr/local/opt/chruby/share/chruby/auto.sh
-chruby ruby-3.1.2
-
-
-export PATH=/Users/jeremy/.meteor:$PATH
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
@@ -119,10 +113,5 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-# Source nerfstudio autocompletions.
-if ! command -v compdef &> /dev/null; then
-    autoload -Uz compinit
-    compinit
-fi
-
 conda deactivate # (don't default activate)
+
