@@ -72,6 +72,7 @@ alias ytdl="yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'"
 alias zshrc="$CODEPATH/util/zshrc-update; zshconfig"
 alias zshconfig="source $HOME/.zshrc"
 
-# shell initialization (fzf)
+# shell initialization (fzf/ruby)
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+source /usr/local/opt/chruby/share/chruby/chruby.sh
 
