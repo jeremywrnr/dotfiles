@@ -36,6 +36,8 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     alias ywifi="networksetup -setairportpower en0 on"
     eval "$(fasd --init posix-alias zsh-hook)"
     export FZF_DEFAULT_COMMAND='ag -g ""'
+    source /usr/local/opt/chruby/share/chruby/chruby.sh
+    chruby 3.0.2
 
 fi
 
@@ -74,5 +76,4 @@ alias zshconfig="source $HOME/.zshrc"
 
 # shell initialization (fzf/ruby)
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-source /usr/local/opt/chruby/share/chruby/chruby.sh
 
