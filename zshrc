@@ -37,7 +37,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     eval "$(fasd --init posix-alias zsh-hook)"
     export FZF_DEFAULT_COMMAND='ag -g ""'
     source /usr/local/opt/chruby/share/chruby/chruby.sh
-    chruby 3.0.2
+    chruby 3.4.4
 
 fi
 
@@ -94,3 +94,4 @@ unset __conda_setup
 conda deactivate
 # <<< conda initialize <<<
 
+export PATH="/usr/local/opt/ruby/bin:$PATH"
