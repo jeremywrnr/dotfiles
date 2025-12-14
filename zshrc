@@ -15,7 +15,8 @@ export TERM=xterm-256color
 export PATH="/usr/local/bin:$PATH"
 export PATH="/usr/local/share/python:$PATH"
 export PATH="$HOME/Library/Python/3.9/bin/$PATH"
-export PATH="$HOME/.meteor:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.rbenv/bin:$PATH"
 export PATH="$HOME/.bin:$PATH"
 export PATH="$CODEPATH/util:$PATH"
 export MANPATH="/usr/local/man:$MANPATH"
@@ -30,28 +31,26 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
 
-    alias ag="nocorrect ag"
-    alias nwifi="networksetup -setairportpower en0 off"
     alias rwifi="nwifi && sleep 4 && ywifi"
+    alias nwifi="networksetup -setairportpower en0 off"
     alias ywifi="networksetup -setairportpower en0 on"
     eval "$(fasd --init posix-alias zsh-hook)"
     export FZF_DEFAULT_COMMAND='ag -g ""'
-    source /usr/local/opt/chruby/share/chruby/chruby.sh
-    chruby 3.4.4
-
+    [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+    eval "$(rbenv init -)"
 fi
 
 # Aliases
 alias acp="git-add-commit-push"
-alias bx="bundle exec"
+alias ag="nocorrect ag"
 alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup"
+alias bx="bundle exec"
 alias c="code ."
-alias h='fc -l 1'
-alias fast="speedtest"
 alias fw='nocorrect fw'
 alias g="git"
 alias gi="\vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"
 alias godot="cd $CODEPATH/dotfiles"
+alias h='fc -l 1'
 alias inkscape="/Applications/Inkscape.app/Contents/MacOS/inkscape"
 alias ll="ls -l"
 alias lw="echo 'lines, words, chars, in files:'; ls -S | xargs wc"
@@ -59,11 +58,10 @@ alias m4a2mp3='find . -name "*m4a" | sed -e "s/.m4a$//" | xargs -I % ffmpeg -i "
 alias o="open ."
 alias path='echo -e ${PATH//:/\\n}'
 alias python="python3"
-alias rmswp="find . -type f -name '*swp' -exec rm -v {} \;; find . -type f -name '*swo' -exec rm -v {} \;"
 alias rmicon="find . -type f -name 'Icon?' -exec rm -v {} \;"
+alias rmswp="find . -type f -name '*swp' -exec rm -v {} \;; find . -type f -name '*swo' -exec rm -v {} \;"
 alias sub="open -a Sublime\ Text"
 alias tree="tree -C"
-alias tre="tree"
 alias trim="awk 'length(\$0) < 120'"
 alias vi="vim"
 alias vimup="\vim +PlugInstall +PlugUpdate +PlugUpgrade +qa"
@@ -71,12 +69,7 @@ alias wav2mp3='find . -name "*wav" | sed -e "s/.wav$//" | xargs -I % ffmpeg -i "
 alias webp2png='find . -name "*webp" | sed -e "s/.webp$//" | xargs -I % dwebp "%.webp" -o "%.png"'
 alias webp2jpg='find . -name "*webp" | sed -e "s/.webp$//" | xargs -I % dwebp "%.webp" -o "%.jpg"'
 alias ytdl="yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'"
-alias zshrc="$CODEPATH/util/zshrc-update; zshconfig"
-alias zshconfig="source $HOME/.zshrc"
-
-# shell initialization (fzf/ruby)
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
+alias zshrc="$CODEPATH/util/zshrc-update; source $HOME/.zshrc"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
@@ -94,4 +87,4 @@ unset __conda_setup
 conda deactivate
 # <<< conda initialize <<<
 
-export PATH="/usr/local/opt/ruby/bin:$PATH"
+. "$HOME/.local/bin/env"
