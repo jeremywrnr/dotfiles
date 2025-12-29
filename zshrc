@@ -31,6 +31,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
 
+    alias ls="eza --icons=always"
     alias rwifi="nwifi && sleep 4 && ywifi"
     alias nwifi="networksetup -setairportpower en0 off"
     alias ywifi="networksetup -setairportpower en0 on"
