@@ -88,4 +88,7 @@ unset __conda_setup
 conda deactivate
 # <<< conda initialize <<<
 
+# Load local config (not in version control)
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
+
 . "$HOME/.local/bin/env"
