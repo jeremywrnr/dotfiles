@@ -1,0 +1,15 @@
+[font]
+size = 16.0  # Change to your preferred size
+
+[env]
+TERM = "xterm-256color"
+
+[window]
+padding.x = 10
+padding.y = 10
+
+opacity = 0.9
+blur = true
+
+option_as_alt = "Both"
+
