@@ -72,22 +72,6 @@ alias webp2jpg='find . -name "*webp" | sed -e "s/.webp$//" | xargs -I % dwebp "%
 alias ytdl="yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'"
 alias zshrc="$CODEPATH/util/zshrc-update; source $HOME/.zshrc"
 
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/Users/jeremy/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/Users/jeremy/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/Users/jeremy/miniconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/Users/jeremy/miniconda3/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-conda deactivate
-# <<< conda initialize <<<
-
 # Load local config (not in version control)
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
