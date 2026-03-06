@@ -76,3 +76,4 @@ alias zshrc="$CODEPATH/util/zshrc-update; source $HOME/.zshrc"
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
 . "$HOME/.local/bin/env"
+export PATH="$HOME/.local/bin:$PATH"

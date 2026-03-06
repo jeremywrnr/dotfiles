@@ -11,3 +11,4 @@ export PATH="$PATH:$HOME/.rvm/bin"
 
 
 . "$HOME/.local/bin/env"
+. "$HOME/.cargo/env"
