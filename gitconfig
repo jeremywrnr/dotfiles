@@ -41,6 +41,8 @@
     acp= add-commit-push
     puller= all-puller
     set-upstream = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
+[core]
+    excludesfile = ~/.gitignore_global
 [diff]
     algorithm = minimal
     compactionHeuristic = true

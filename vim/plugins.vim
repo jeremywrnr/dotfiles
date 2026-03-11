@@ -44,7 +44,7 @@ Plug 'mustache/vim-mustache-handlebars'
 
 " post installs
 Plug 'prettier/vim-prettier', {
-  \ 'do': 'yarn install',
+  \ 'do': 'npm install --legacy-peer-deps',
   \ 'branch': 'release/1.x',
   \ 'for': [
     \ 'javascript',
