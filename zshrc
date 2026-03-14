@@ -36,8 +36,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     (( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
     export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
     [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-    # Lazy-load rbenv: initialize on first use to speed up shell startup
-    rbenv() { unfunction rbenv; eval "$(command rbenv init -)"; rbenv "$@"; }
+    eval "$(rbenv init -)"
 fi
 
 # Aliases
