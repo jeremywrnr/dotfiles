@@ -47,7 +47,7 @@ fi
 # Aliases
 alias acp="git-add-commit-push"
 alias rg="nocorrect rg"
-alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup"
+alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force"
 alias bx="bundle exec"
 alias c="code ."
 alias fw='nocorrect fw'

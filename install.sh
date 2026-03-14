@@ -75,6 +75,7 @@ echo ""
 echo "Misc:"
 link gemrc        .gemrc
 link pytest.ini   .pytest.ini
+link Brewfile     .Brewfile
 
 echo ""
 echo "Oh My Zsh theme:"

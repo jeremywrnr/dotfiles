@@ -50,8 +50,6 @@ brew "tmux"
 # fonts + apps
 cask "font-meslo-lg-nerd-font"
 cask "basictex"
-cask "x2goclient"
-cask "xquartz"
 
 # vscode extensions
 vscode "christian-kohler.path-intellisense"
