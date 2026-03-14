@@ -6,6 +6,9 @@ HISTSIZE=100000
 SAVEHIST=100000
 CODEPATH="$HOME/Code"
 
+# Booker completion
+fpath=(~/.zsh/completion $fpath)
+
 # ~/.oh-my-zsh/plugins/*
 plugins=(git macos history-substring-search)
 source $ZSH/oh-my-zsh.sh
@@ -79,6 +82,3 @@ eval "$(fnm env --use-on-cd --shell zsh)"
 
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 
-# Booker completion
-fpath=(~/.zsh/completion $fpath)
-autoload -Uz compinit && compinit
