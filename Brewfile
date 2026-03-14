@@ -3,6 +3,7 @@ tap "dart-lang/dart"
 tap "homebrew/services"
 tap "lizardbyte/homebrew"
 tap "mongodb/brew"
+tap "jeremywrnr/tap"
 tap "sass/sass"
 
 # shell
@@ -16,11 +17,9 @@ brew "wget"
 brew "htop"
 brew "telnet"
 
-# editor
-brew "just"
-
 # git
 brew "git"
+brew "gh"
 
 # node
 brew "fnm"
@@ -37,10 +36,14 @@ brew "imagemagick"
 brew "yt-dlp"
 brew "unrar"
 
+# personal
+brew "apple-to-last-fm"
+
 # misc
 brew "cloudflared"
 brew "web-ext"
 brew "gmp"
+brew "just"
 brew "libffi"
 brew "pango"
 
