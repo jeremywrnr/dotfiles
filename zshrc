@@ -36,7 +36,9 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     (( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
     export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
     [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-    eval "$(rbenv init -)"
+    # shims on PATH immediately (so gem/ruby/bundle work), full init deferred
+    export PATH="$HOME/.rbenv/shims:$PATH"
+    rbenv() { unfunction rbenv; eval "$(command rbenv init -)"; rbenv "$@"; }
 fi
 
 # Aliases
@@ -76,3 +78,7 @@ eval "$(fnm env --use-on-cd --shell zsh)"
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
+
+# Booker completion
+fpath=(~/.zsh/completion $fpath)
+autoload -Uz compinit && compinit
