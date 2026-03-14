@@ -10,7 +10,7 @@ CODEPATH="$HOME/Code"
 fpath=(~/.zsh/completion $fpath)
 
 # ~/.oh-my-zsh/plugins/*
-plugins=(git macos history-substring-search)
+plugins=(git history-substring-search)
 source $ZSH/oh-my-zsh.sh
 
 # User configuration
