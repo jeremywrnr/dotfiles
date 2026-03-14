@@ -1,6 +1,5 @@
 tap "cloudflare/cloudflare"
 tap "dart-lang/dart"
-tap "homebrew/bundle"
 tap "homebrew/services"
 tap "lizardbyte/homebrew"
 tap "mongodb/brew"
@@ -10,7 +9,7 @@ tap "sass/sass"
 brew "fzf"
 brew "eza"
 brew "zoxide"
-brew "the_silver_searcher"
+brew "ripgrep"
 brew "tree"
 brew "watch"
 brew "wget"
@@ -22,14 +21,12 @@ brew "just"
 
 # git
 brew "git"
-brew "reattach-to-user-namespace"
 
 # node
 brew "fnm"
 
 # ruby
 brew "rbenv"
-brew "ruby"
 
 # python
 brew "python@3.13"
@@ -45,7 +42,6 @@ brew "cloudflared"
 brew "web-ext"
 brew "gmp"
 brew "libffi"
-brew "openssl@1.1"
 brew "pango"
 
 # terminal

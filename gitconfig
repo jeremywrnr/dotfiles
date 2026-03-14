@@ -36,7 +36,6 @@
     open = !open-remote
     last= log -p --max-count=1 --word-diff
     alias= config --get-regexp alias
-    up = pull --rebase --autostash
     ac= add-commit
     acp= add-commit-push
     puller= all-puller
@@ -45,24 +44,10 @@
     excludesfile = ~/.gitignore_global
 [diff]
     algorithm = minimal
-    compactionHeuristic = true
     renames = true
-[color]
-    branch = auto
-    diff = auto
-    interactive = auto
-    status = auto
-    ui = true
-[color "diff"]
-    old = red bold
-    new = green bold
-    frag = magenta bold
-    whitespace = red reverse
-[color "diff-highlight"]
-    oldNormal = red bold
-    oldHighlight = "red bold 52"
-    newNormal = "green bold"
-    newHighlight = "green bold 22"
+    colorMoved = default
+[merge]
+    conflictstyle = zdiff3
 [filter "lfs"]
     process = git-lfs filter-process
     required = true

@@ -16,3 +16,8 @@ blur = true
 
 option_as_alt = "Both"
 
+[[keyboard.bindings]]
+key = "Return"
+mods = "Shift"
+chars = "\u001b[13;2u"
+

@@ -2,7 +2,8 @@ export ZSH=$HOME/.oh-my-zsh    # Path to your oh-my-zsh installation.
 COMPLETION_WAITING_DOTS="true" # display red dots whilst waiting for completion.
 ZSH_THEME="jwrnr"              # Themes: Look in ~/.oh-my-zsh/themes/
 ENABLE_CORRECTION="true"       # enable command auto-correction.
-HISTSIZE=100000                # use case-sensitive completion.
+HISTSIZE=100000
+SAVEHIST=100000
 CODEPATH="$HOME/Code"
 
 # ~/.oh-my-zsh/plugins/*
@@ -11,7 +12,6 @@ source $ZSH/oh-my-zsh.sh
 
 # User configuration
 export EDITOR="vim"
-export TERM=xterm-256color
 export PATH="/usr/local/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.rbenv/bin:$PATH"
@@ -50,7 +50,6 @@ alias g="git"
 alias gi="\vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"
 alias godot="cd $CODEPATH/dotfiles"
 alias h='fc -l 1'
-alias inkscape="/Applications/Inkscape.app/Contents/MacOS/inkscape"
 alias ll="ls -l"
 alias lw="echo 'lines, words, chars, in files:'; ls -S | xargs wc"
 alias m4a2mp3='find . -name "*m4a" | sed -e "s/.m4a$//" | xargs -I % ffmpeg -i "%.m4a" -acodec libmp3lame -ab 320k "%.mp3"'
@@ -59,7 +58,6 @@ alias path='echo -e ${PATH//:/\\n}'
 alias python="python3"
 alias rmicon="find . -type f -name 'Icon?' -exec rm -v {} \;"
 alias rmswp="find . -type f -name '*swp' -exec rm -v {} \;; find . -type f -name '*swo' -exec rm -v {} \;"
-alias sub="open -a Sublime\ Text"
 alias tree="tree -C"
 alias trim="awk 'length(\$0) < 120'"
 alias vi="vim"
@@ -77,4 +75,4 @@ eval "$(fnm env --use-on-cd --shell zsh)"
 # Load local config (not in version control)
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
-. "$HOME/.local/bin/env"
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
