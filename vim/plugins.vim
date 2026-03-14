@@ -36,7 +36,6 @@ Plug 'LaTeX-Box-Team/LaTeX-Box'
 Plug 'mustache/vim-mustache-handlebars'
 
 " post installs
-Plug 'prettier/vim-prettier', { 'do': 'npm install --legacy-peer-deps' }
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 
