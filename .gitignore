@@ -1,4 +1,7 @@
+.claude/settings.local.json
 backup/*
 .DS_Store
+.zshrc.local
 *.swp
+vim/plugged/
 *.swo

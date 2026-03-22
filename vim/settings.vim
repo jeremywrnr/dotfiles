@@ -25,20 +25,15 @@ set notimeout ttimeout ttimeoutlen=200
 let mapleader = ','
 let g:rehash256 = 1
 let g:goyo_width = 80
-let g:ctrlp_map = '<c-p>'
-let g:ctrlp_cmd = 'CtrlP'
-let g:ctrlp_use_caching = 0
+nmap <c-p> :FZF<cr>
 let g:EasyMotion_smartcase = 1
 let g:EasyMotion_do_mapping = 0
-let g:ctrlp_custom_ignore = 'node_modules'
-let g:ackprg = 'ag --nogroup --nocolor --column'
 let g:netrw_nogx = 1
 nmap gx <Plug>(openbrowser-smart-search)
 vmap gx <Plug>(openbrowser-smart-search)
 
 augroup formatNewCodeBuffer
     autocmd!
-    autocmd BufWrite * :echom "Autostarting..."
     autocmd FileType yaml setlocal sw=2 ts=2 expandtab indentexpr=
     autocmd FileType ruby setlocal sw=2 ts=2 expandtab
     autocmd FileType eruby setlocal sw=2 ts=2 expandtab
