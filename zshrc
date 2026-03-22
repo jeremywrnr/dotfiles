@@ -25,6 +25,8 @@ export LANG=en_US.UTF-8
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     alias brew="sudo apt-get"
+    # Install Ruby Gems to ~/gems
+    export GEM_HOME="$HOME/gems"
     export PATH="$HOME/gems/bin:$PATH"
     export PATH="$HOME/.rbenv/shims:$PATH"
 
@@ -78,3 +80,8 @@ alias zshconfig="source $HOME/.zshrc"
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 export PATH="/usr/local/opt/ruby/bin:$PATH"
+source $HOME/.cargo/env
+
+export XDG_DATA_DIRS="/var/lib/flatpak/exports/share:/home/jeremy/.local/share/flatpak/exports/share:$XDG_DATA_DIRS"
+
+eval "$(zoxide init bash)"
