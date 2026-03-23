@@ -33,6 +33,7 @@
     co= checkout
     ps= push
     pl= pull
+    up= pull
     open = !open-remote
     last= log -p --max-count=1 --word-diff
     alias= config --get-regexp alias
