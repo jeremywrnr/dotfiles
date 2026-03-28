@@ -47,13 +47,14 @@ fi
 # Aliases
 alias acp="git-add-commit-push"
 alias rg="nocorrect rg"
-alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force"
+alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force --file=$CODEPATH/dotfiles/Brewfile"
 alias bx="bundle exec"
 alias c="code ."
 alias fw='nocorrect fw'
 alias g="git"
 alias gi="\vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"
 alias godot="cd $CODEPATH/dotfiles"
+alias up="git pull"
 alias h='fc -l 1'
 alias ll="ls -l"
 alias lw="echo 'lines, words, chars, in files:'; ls -S | xargs wc"
