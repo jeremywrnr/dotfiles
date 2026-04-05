@@ -52,6 +52,7 @@ brew "tmux"
 
 # fonts + apps
 cask "font-meslo-lg-nerd-font"
+cask "font-jetbrains-mono-nerd-font"
 cask "basictex"
 
 # vscode extensions

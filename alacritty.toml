@@ -2,7 +2,7 @@
 size = 16.0
 
 [font.normal]
-family = "MesloLGM Nerd Font Mono"
+family = "JetBrainsMono Nerd Font Mono"
 
 [env]
 TERM = "xterm-256color"
