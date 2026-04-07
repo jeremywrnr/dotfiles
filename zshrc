@@ -83,3 +83,6 @@ eval "$(fnm env --use-on-cd --shell zsh)"
 
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 
+
+# bun completions
+[ -s "/Users/jeremy/.bun/_bun" ] && source "/Users/jeremy/.bun/_bun"
