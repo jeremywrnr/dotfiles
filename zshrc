@@ -86,3 +86,7 @@ eval "$(fnm env --use-on-cd --shell zsh)"
 
 # bun completions
 [ -s "/Users/jeremy/.bun/_bun" ] && source "/Users/jeremy/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
