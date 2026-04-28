@@ -39,6 +39,8 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     (( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
     export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
     [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+    # Set up fzf key bindings and fuzzy completion
+    source <(fzf --zsh)
     # shims on PATH immediately (so gem/ruby/bundle work), full init deferred
     export PATH="$HOME/.rbenv/shims:$PATH"
     rbenv() { unfunction rbenv; eval "$(command rbenv init -)"; rbenv "$@"; }
