@@ -25,6 +25,7 @@ export LANG=en_US.UTF-8
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     alias brew="sudo apt-get"
+    alias brewup="sudo apt-get update && sudo apt-get upgrade && sudo apt-get autoremove && sudo apt-get autoclean"
     export PATH="$HOME/gems/bin:$PATH"
     export PATH="$HOME/.rbenv/shims:$PATH"
 
@@ -34,6 +35,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     alias nwifi="networksetup -setairportpower en0 off"
     alias rwifi="nwifi && sleep 4 && ywifi"
     alias ywifi="networksetup -setairportpower en0 on"
+    alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup"
     eval "$(fasd --init posix-alias zsh-hook)"
     export FZF_DEFAULT_COMMAND='ag -g ""'
     source /usr/local/opt/chruby/share/chruby/chruby.sh
@@ -44,7 +46,6 @@ fi
 # Aliases
 alias acp="git-add-commit-push"
 alias bx="bundle exec"
-alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup"
 alias c="code ."
 alias h='fc -l 1'
 alias fast="speedtest"
@@ -88,3 +89,5 @@ export GEM_HOME="$HOME/.gem"
 export PATH="$HOME/.gem/bin:$PATH"
 
 . "$HOME/.local/bin/env"
+
+PROMPT='%F{red}[optiplex]%f '"${PROMPT}"

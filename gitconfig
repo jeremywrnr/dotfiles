@@ -2,8 +2,6 @@
     user  = jeremywrnr
     name  = Jeremy Warner
     email = jeremywrnr@gmail.com
-[credential]
-    helper = osxkeychain
 [push]
     default = current
 [pull]
@@ -66,3 +64,5 @@
     required = true
     clean = git-lfs clean -- %f
     smudge = git-lfs smudge -- %f
+[credential "https://git.jeremywrnr.com"]
+	helper = store
