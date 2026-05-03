@@ -79,7 +79,7 @@ alias ytdl="yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'"
 alias zshrc="$CODEPATH/util/zshrc-update; source $HOME/.zshrc"
 
 # fnm (Fast Node Manager)
-eval "$(fnm env --use-on-cd --shell zsh)"
+(( $+commands[fnm] )) && eval "$(fnm env --use-on-cd --shell zsh)"
 
 # Load local config (not in version control)
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
