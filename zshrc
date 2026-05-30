@@ -77,11 +77,12 @@ alias webp2jpg='find . -name "*webp" | sed -e "s/.webp$//" | xargs -I % dwebp "%
 alias ytdl="yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'"
 alias zshrc="$CODEPATH/util/zshrc-update; source $HOME/.zshrc"
 
-# Push published music to NAS for to auto-tag + import
-ingest-album() { rsync -avhP --chmod=Dg+rwx,Do+rx,Fg+rw,Fo+r "$@" nas:/volume2/Media/Downloads/; }
-
-# Push original/personal music to NAS
-ingest-music() { rsync -avhP --chmod=ugo+rX "$@" nas:/volume2/Media/Music/Originals/; }
+ingest-nas-official() { 
+    rsync -avhP "$@" nas:/volume2/Media/Music/Library/ && ssh nas 'chgrp -R music /volume2/Media/Music/Library && chmod -R g+rwX /volume2/Media/Music/Library' 2>/dev/null;
+}
+ingest-nas-personal() {
+    rsync -avhP "$@" nas:/volume2/Media/Music/Originals/ && ssh nas 'chgrp -R music /volume2/Media/Music/Originals && chmod -R g+rwX /volume2/Media/Music/Originals' 2>/dev/null;
+}
 
 # fnm (Fast Node Manager)
 eval "$(fnm env --use-on-cd --shell zsh)"
