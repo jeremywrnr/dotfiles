@@ -49,7 +49,7 @@ fi
 # Aliases
 alias acp="git-add-commit-push"
 alias rg="nocorrect rg"
-alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force --file=$CODEPATH/dotfiles/Brewfile"
+alias brewup="brew update && brew upgrade --yes && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force --file=$CODEPATH/dotfiles/Brewfile"
 alias bx="bundle exec"
 alias c="code ."
 alias fw='nocorrect fw'
