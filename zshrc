@@ -49,9 +49,9 @@ fi
 # Aliases
 alias acp="git-add-commit-push"
 alias rg="nocorrect rg"
-alias brewup="brew update && brew upgrade --yes && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force --file=$CODEPATH/dotfiles/Brewfile"
+alias brewup="brew update && brew trust jeremywrnr/tap && brew upgrade --yes && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force --file=$CODEPATH/dotfiles/Brewfile"
 alias bx="bundle exec"
-alias c="code ."
+alias c="zed ."
 alias fw='nocorrect fw'
 alias g="git"
 alias gi="\vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"

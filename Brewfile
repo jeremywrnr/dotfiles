@@ -54,6 +54,7 @@ brew "tmux"
 cask "font-meslo-lg-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
 cask "basictex"
+cask "zed"
 
 # vscode extensions
 vscode "christian-kohler.path-intellisense"
