@@ -1,6 +1,4 @@
 # aliases
-alias g='git'
-alias vi='vim'
 alias ls='ls -h --color=always'
 
 # exporting
