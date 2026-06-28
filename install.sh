@@ -88,6 +88,15 @@ echo "Zed:"
 link zed/settings.json .config/zed/settings.json
 
 echo ""
+echo "MIME associations:"
+link mimeapps.list                   .config/mimeapps.list
+link desktop-entry-launcher.desktop  .local/share/applications/desktop-entry-launcher.desktop
+if command -v update-desktop-database &>/dev/null; then
+  update-desktop-database "$HOME/.local/share/applications/"
+  echo "  updated desktop database"
+fi
+
+echo ""
 echo "Misc:"
 link gemrc        .gemrc
 link pytest.ini   .pytest.ini

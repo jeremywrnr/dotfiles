@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Desktop Entry Launcher
+Exec=gio launch %f
+Type=Application
+NoDisplay=true
+MimeType=application/x-desktop;
