@@ -27,9 +27,9 @@ export LANG=en_US.UTF-8
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     alias brew="sudo apt-get"
-    # Install Ruby Gems to ~/gems
-    export GEM_HOME="$HOME/gems"
-    export PATH="$HOME/gems/bin:$PATH"
+    # Install Ruby Gems to ~/.gems
+    export GEM_HOME="$HOME/.gems"
+    export PATH="$HOME/.gems/bin:$PATH"
     export PATH="$HOME/.rbenv/shims:$PATH"
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
@@ -88,7 +88,7 @@ ingest-nas-personal() {
 }
 
 # fnm (Fast Node Manager)
-eval "$(fnm env --use-on-cd --shell zsh)"
+(( $+commands[fnm] )) && eval "$(fnm env --use-on-cd --shell zsh)"
 
 # Load local config (not in version control)
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
