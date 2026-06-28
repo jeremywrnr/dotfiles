@@ -90,4 +90,12 @@ else
 fi
 
 echo ""
+echo "GNOME Settings:"
+if command -v gsettings &>/dev/null && [ -f "$DOTFILES/gnome-settings.sh" ]; then
+  "$DOTFILES/gnome-settings.sh"
+else
+  echo "  skipped (gsettings not found or gnome-settings.sh missing)"
+fi
+
+echo ""
 echo "Done. Restart your shell or run: source ~/.zshrc"
