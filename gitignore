@@ -10,3 +10,5 @@ Thumbs.db
 TODO
 TEMP_*
 .srvr*
+
+**/.claude/settings.local.json
