@@ -27,6 +27,7 @@ export LANG=en_US.UTF-8
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
 
     alias brew="sudo apt-get"
+    alias brewup="sudo apt-get update && sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && sudo snap refresh"
     # Install Ruby Gems to ~/.gems
     export GEM_HOME="$HOME/.gems"
     export PATH="$HOME/.gems/bin:$PATH"
@@ -38,6 +39,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     alias rwifi="nwifi && sleep 4 && ywifi"
     alias nwifi="networksetup -setairportpower en0 off"
     alias ywifi="networksetup -setairportpower en0 on"
+    alias brewup="brew update && brew trust jeremywrnr/tap cloudflare/cloudflare dart-lang/dart lizardbyte/homebrew mongodb/brew sass/sass && brew upgrade --yes && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force --file=$CODEPATH/dotfiles/Brewfile"
     (( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
     export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
     # Set up fzf key bindings and fuzzy completion
@@ -50,7 +52,6 @@ fi
 # Aliases
 alias acp="git-add-commit-push"
 alias rg="nocorrect rg"
-alias brewup="brew update && brew trust jeremywrnr/tap cloudflare/cloudflare dart-lang/dart lizardbyte/homebrew mongodb/brew sass/sass && brew upgrade --yes && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force --file=$CODEPATH/dotfiles/Brewfile"
 alias bx="bundle exec"
 alias c="zed ."
 alias fw='nocorrect fw'

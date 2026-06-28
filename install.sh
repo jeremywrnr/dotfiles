@@ -40,6 +40,18 @@ if command -v brew &>/dev/null && [ -f "$DOTFILES/Brewfile" ]; then
   echo ""
 fi
 
+if command -v apt-get &>/dev/null; then
+  echo "APT keys:"
+  KEYRING=/etc/apt/keyrings/yarn-archive-keyring.gpg
+  if [ ! -f "$KEYRING" ]; then
+    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | sudo tee "$KEYRING" > /dev/null
+    echo "  installed: yarn keyring"
+  else
+    echo "  ok: yarn keyring"
+  fi
+  echo ""
+fi
+
 echo "Shell:"
 link zshrc        .zshrc
 link bashrc       .bashrc
@@ -80,6 +92,15 @@ echo "Misc:"
 link gemrc        .gemrc
 link pytest.ini   .pytest.ini
 link Brewfile     .Brewfile
+
+echo ""
+echo "uv:"
+if ! command -v uv &>/dev/null; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  echo "  installed"
+else
+  echo "  ok: $(uv --version)"
+fi
 
 echo ""
 echo "Oh My Zsh theme:"

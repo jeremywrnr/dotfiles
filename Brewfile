@@ -29,6 +29,7 @@ brew "rbenv"
 
 # python
 brew "python@3.13"
+brew "uv"
 
 # media
 brew "ffmpeg"
