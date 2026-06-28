@@ -40,7 +40,8 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then # Mac OSX
     alias ywifi="networksetup -setairportpower en0 on"
     (( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
     export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
-    [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+    # Set up fzf key bindings and fuzzy completion
+    source <(fzf --zsh)
     # shims on PATH immediately (so gem/ruby/bundle work), full init deferred
     export PATH="$HOME/.rbenv/shims:$PATH"
     rbenv() { unfunction rbenv; eval "$(command rbenv init -)"; rbenv "$@"; }
@@ -49,20 +50,20 @@ fi
 # Aliases
 alias acp="git-add-commit-push"
 alias rg="nocorrect rg"
-alias brewup="brew update && brew upgrade && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force"
+alias brewup="brew update && brew trust jeremywrnr/tap cloudflare/cloudflare dart-lang/dart lizardbyte/homebrew mongodb/brew sass/sass && brew upgrade --yes && brew cleanup --prune-prefix && brew cleanup && brew bundle cleanup --force --file=$CODEPATH/dotfiles/Brewfile"
 alias bx="bundle exec"
-alias c="code ."
+alias c="zed ."
 alias fw='nocorrect fw'
 alias g="git"
 alias gi="\vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"
 alias godot="cd $CODEPATH/dotfiles"
+alias up="git pull"
 alias h='fc -l 1'
 alias ll="ls -l"
 alias lw="echo 'lines, words, chars, in files:'; ls -S | xargs wc"
 alias m4a2mp3='find . -name "*m4a" | sed -e "s/.m4a$//" | xargs -I % ffmpeg -i "%.m4a" -acodec libmp3lame -ab 320k "%.mp3"'
 alias o="open ."
 alias path='echo -e ${PATH//:/\\n}'
-alias python="python3"
 alias rmicon="find . -type f -name 'Icon?' -exec rm -v {} \;"
 alias rmswp="find . -type f -name '*swp' -exec rm -v {} \;; find . -type f -name '*swo' -exec rm -v {} \;"
 alias tree="tree -C"
@@ -75,6 +76,16 @@ alias webp2png='find . -name "*webp" | sed -e "s/.webp$//" | xargs -I % dwebp "%
 alias webp2jpg='find . -name "*webp" | sed -e "s/.webp$//" | xargs -I % dwebp "%.webp" -o "%.jpg"'
 alias ytdl="yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'"
 alias zshrc="$CODEPATH/util/zshrc-update; source $HOME/.zshrc"
+
+to-content() { rsync -avP "$@" nas:/volume1/Content/; }
+to-files()   { rsync -avP "$@" nas:/volume2/Media/; }
+
+ingest-nas-official() {
+    rsync -avhP "$@" nas:/volume2/Media/Music/Library/ && ssh nas 'chgrp -R music /volume2/Media/Music/Library && chmod -R g+rwX /volume2/Media/Music/Library' 2>/dev/null;
+}
+ingest-nas-personal() {
+    rsync -avhP "$@" nas:/volume2/Media/Music/Originals/ && ssh nas 'chgrp -R music /volume2/Media/Music/Originals && chmod -R g+rwX /volume2/Media/Music/Originals' 2>/dev/null;
+}
 
 # fnm (Fast Node Manager)
 eval "$(fnm env --use-on-cd --shell zsh)"
@@ -92,5 +103,11 @@ source $HOME/.cargo/env
 
 export XDG_DATA_DIRS="/var/lib/flatpak/exports/share:/home/jeremy/.local/share/flatpak/exports/share:$XDG_DATA_DIRS"
 
-eval "$(zoxide init bash)"
+eval "$(zoxide init zsh)"
 
+# bun completions
+[ -s "/Users/jeremy/.bun/_bun" ] && source "/Users/jeremy/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"

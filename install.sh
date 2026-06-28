@@ -72,6 +72,10 @@ echo "Alacritty:"
 link alacritty.toml .config/alacritty/alacritty.toml
 
 echo ""
+echo "Zed:"
+link zed/settings.json .config/zed/settings.json
+
+echo ""
 echo "Misc:"
 link gemrc        .gemrc
 link pytest.ini   .pytest.ini

@@ -26,7 +26,7 @@ Plug 'junegunn/vim-emoji'
 Plug 'sheerun/vim-polyglot'
 
 " post installs
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 
 " Add plugins to &runtimepath
