@@ -40,6 +40,17 @@ if command -v brew &>/dev/null && [ -f "$DOTFILES/Brewfile" ]; then
   echo ""
 fi
 
+echo "Ruby:"
+RUBY_VERSION="4.0.5"
+if command -v rbenv &>/dev/null; then
+  rbenv install --skip-existing "$RUBY_VERSION"
+  rbenv global "$RUBY_VERSION"
+  echo "  global: $RUBY_VERSION"
+else
+  echo "  skipped (rbenv not installed)"
+fi
+
+echo ""
 echo "Shell:"
 link zshrc        .zshrc
 link bashrc       .bashrc
@@ -74,6 +85,11 @@ link alacritty.toml .config/alacritty/alacritty.toml
 echo ""
 echo "Zed:"
 link zed/settings.json .config/zed/settings.json
+
+echo ""
+echo "Claude Code:"
+link claude/settings.json .claude/settings.json
+link claude/statusline.sh .claude/statusline.sh
 
 echo ""
 echo "Misc:"

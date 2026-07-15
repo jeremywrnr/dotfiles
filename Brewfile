@@ -16,6 +16,7 @@ brew "watch"
 brew "wget"
 brew "htop"
 brew "telnet"
+brew "jq"
 
 # git
 brew "git"
