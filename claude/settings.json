@@ -1,0 +1,9 @@
+{
+  "model": "sonnet",
+  "tui": "fullscreen",
+  "theme": "light",
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh"
+  }
+}
