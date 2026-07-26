@@ -47,6 +47,7 @@ brew "gmp"
 brew "just"
 brew "libffi"
 brew "pango"
+brew "poppler"
 
 # terminal
 brew "tmux"

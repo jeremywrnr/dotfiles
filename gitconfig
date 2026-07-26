@@ -42,6 +42,10 @@
     puller= all-puller
     su= !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
     set-upstream = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
+    cob= !git branch --merged main | grep -vE '^[*]|main|master' | xargs -n 1 git branch -d
+    clear-old-branches= !git cob
+    sb= !git reset --soft $(git merge-base main HEAD) && git commit -m squash-onto-main
+    squash-branch= !git sb
 [core]
     excludesfile = ~/.gitignore_global
 [diff]
