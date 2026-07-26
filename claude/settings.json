@@ -5,6 +5,6 @@
     "command": "~/.claude/statusline.sh"
   },
   "tui": "fullscreen",
-  "theme": "dark",
-  "skipWorkflowUsageWarning": true
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto"
 }
