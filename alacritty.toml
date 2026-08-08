@@ -16,6 +16,10 @@ blur = true
 
 option_as_alt = "Both"
 
+# macOS draws the tab bar natively; this is the only way to affect it.
+# Dark makes the active tab contrast against the inactive ones.
+decorations_theme_variant = "Dark"
+
 [[keyboard.bindings]]
 key = "Return"
 mods = "Shift"
