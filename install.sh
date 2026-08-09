@@ -90,6 +90,7 @@ echo ""
 echo "Claude Code:"
 link claude/settings.json .claude/settings.json
 link claude/statusline.sh .claude/statusline.sh
+link claude/tab-title.sh  .claude/tab-title.sh
 
 echo ""
 echo "Misc:"

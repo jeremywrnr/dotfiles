@@ -5,5 +5,29 @@
   },
   "tui": "fullscreen",
   "skipWorkflowUsageWarning": true,
-  "theme": "auto"
+  "theme": "auto",
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt|idle_prompt|elicitation_dialog",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/tab-title.sh needs" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/tab-title.sh done" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/tab-title.sh clear" }
+        ]
+      }
+    ]
+  }
 }
