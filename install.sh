@@ -80,7 +80,16 @@ link tmux.conf    .tmux.conf
 
 echo ""
 echo "Alacritty:"
-link alacritty.toml .config/alacritty/alacritty.toml
+link alacritty/alacritty.toml .config/alacritty/alacritty.toml
+
+# theme.toml is a copy, not a symlink — theme-sync.sh rewrites it in place and
+# alacritty's file watcher would miss a symlink swap.
+AGENT="com.jeremy.alacritty-theme"
+PLIST="$HOME/Library/LaunchAgents/$AGENT.plist"
+sed "s|__DOTFILES__|$DOTFILES|g" "$DOTFILES/alacritty/$AGENT.plist" >"$PLIST"
+launchctl bootout "gui/$UID/$AGENT" 2>/dev/null || true
+launchctl bootstrap "gui/$UID" "$PLIST"
+echo "  loaded: $AGENT (light/dark follows macOS appearance)"
 
 echo ""
 echo "Zed:"

@@ -1,0 +1,38 @@
+# GitHub Dark — swapped in by theme-sync.sh when macOS is in dark mode.
+
+[window]
+decorations_theme_variant = "Dark"
+
+[colors.primary]
+background = '#0d1117'
+foreground = '#e6edf3'
+
+[colors.normal]
+# Shifted one step up GitHub's grey ramp from upstream's #484f58, which lands
+# at 2.28:1 on this background — dim ANSI text was unreadable. Now 4.12:1.
+black   = '#6e7681'
+red     = '#ff7b72'
+green   = '#3fb950'
+yellow  = '#d29922'
+blue    = '#58a6ff'
+magenta = '#bc8cff'
+cyan    = '#39c5cf'
+white   = '#b1bac4'
+
+[colors.bright]
+black   = '#8b949e'  # was #6e7681; 6.15:1
+red     = '#ffa198'
+green   = '#56d364'
+yellow  = '#e3b341'
+blue    = '#79c0ff'
+magenta = '#d2a8ff'
+cyan    = '#56d4dd'
+white   = '#f0f6fc'
+
+[[colors.indexed_colors]]
+index = 16
+color = '#d18616'
+
+[[colors.indexed_colors]]
+index = 17
+color = '#ffa198'

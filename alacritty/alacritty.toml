@@ -1,0 +1,33 @@
+# Rewritten by alacritty/theme-sync.sh to follow the macOS light/dark
+# appearance; alacritty live-reloads when it changes. Values set here in
+# alacritty.toml win over the import, so anything the theme owns — colors,
+# decorations_theme_variant — must not also be set below.
+[general]
+import = ["~/.config/alacritty/theme.toml"]
+
+[font]
+size = 16.0
+
+[font.normal]
+family = "JetBrainsMono Nerd Font Mono"
+
+[env]
+TERM = "xterm-256color"
+
+[window]
+padding.x = 10
+padding.y = 10
+
+opacity = 0.9
+blur = true
+
+option_as_alt = "Both"
+
+# macOS draws the tab bar natively; decorations_theme_variant is the only way
+# to affect it, so light.toml and dark.toml each set their own.
+
+[[keyboard.bindings]]
+key = "Return"
+mods = "Shift"
+chars = "\u001b[13;2u"
+
