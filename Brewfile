@@ -31,9 +31,14 @@ brew "rbenv"
 # python
 brew "python@3.13"
 
-# media
+# media -- ffmpeg, imagemagick and these four are the backends bin/conv
+# and bin/set-media-date shell out to.
 brew "ffmpeg"
 brew "imagemagick"
+brew "librsvg"
+brew "exiftool"
+brew "rdfind"
+brew "libheif"
 brew "yt-dlp"
 brew "unrar"
 

@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+"""
+Convert various video formats to MP4 with proper codec handling.
+Optionally set metadata dates and delete source files after successful conversion.
+"""
+
+import subprocess
+import sys
+import os
+import json
+from pathlib import Path
+import click
+
+
+# Video formats that should be converted to MP4
+CONVERTIBLE_FORMATS = {
+    '.avi', '.mov', '.wmv', '.flv', '.mkv', '.webm', 
+    '.m4v', '.3gp', '.mpg', '.mpeg', '.vob', '.ogv'
+}
+
+
+def probe_video(video_file):
+    """
+    Use ffprobe to get video/audio codec information.
+    
+    Returns:
+        dict with codec info or None if probe fails
+    """
+    cmd = [
+        "ffprobe",
+        "-v", "quiet",
+        "-print_format", "json",
+        "-show_streams",
+        str(video_file)
+    ]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        
+        video_codec = None
+        audio_codec = None
+        
+        for stream in data.get('streams', []):
+            if stream['codec_type'] == 'video' and not video_codec:
+                video_codec = stream.get('codec_name')
+            elif stream['codec_type'] == 'audio' and not audio_codec:
+                audio_codec = stream.get('codec_name')
+        
+        return {
+            'video_codec': video_codec,
+            'audio_codec': audio_codec
+        }
+    except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
+        return None
+
+
+def convert_video_to_mp4(video_file, date=None, delete_source=True, output_dir=None, quality=18, fast=False):
+    """
+    Convert a video file to MP4.
+    
+    Args:
+        video_file: Path to video file
+        date: Optional date string in format "YYYY:MM:DD HH:MM:SS"
+        delete_source: If True, delete source file after successful conversion
+        output_dir: Optional output directory (default: same as source)
+        quality: CRF quality value (0-51, lower is better)
+        fast: If True, try to copy codecs when possible (faster but less compatible)
+    
+    Returns:
+        True if conversion successful, False otherwise
+    """
+    video_path = Path(video_file)
+    
+    if not video_path.exists():
+        click.echo(f"Error: File not found: {video_file}", err=True)
+        return False
+    
+    # Check if it's a convertible format
+    if video_path.suffix.lower() not in CONVERTIBLE_FORMATS:
+        click.echo(f"Skipping: {video_path.name} (not a convertible format)", err=True)
+        return False
+    
+    # Determine output path
+    if output_dir:
+        output_path = Path(output_dir) / video_path.with_suffix('.mp4').name
+    else:
+        output_path = video_path.with_suffix('.mp4')
+    
+    # Check if output already exists
+    if output_path.exists():
+        click.echo(f"Warning: Output file already exists: {output_path}", err=True)
+        if not click.confirm("Overwrite?"):
+            return False
+    
+    # Probe the video to determine codec strategy
+    codec_info = probe_video(video_path)
+    
+    # Determine encoding strategy
+    if fast and codec_info:
+        video_codec = codec_info.get('video_codec')
+        audio_codec = codec_info.get('audio_codec')
+        
+        # Can we copy video codec?
+        if video_codec in ['h264', 'hevc', 'vp9']:
+            video_opts = ["-c:v", "copy"]
+            click.echo(f"  Video: Copying {video_codec} (no re-encoding)")
+        else:
+            video_opts = ["-c:v", "libx264", "-crf", str(quality), "-preset", "medium"]
+            click.echo(f"  Video: Re-encoding {video_codec or 'unknown'} to H.264")
+        
+        # Can we copy audio codec?
+        if audio_codec in ['aac', 'mp3']:
+            audio_opts = ["-c:a", "copy"]
+            click.echo(f"  Audio: Copying {audio_codec} (no re-encoding)")
+        else:
+            audio_opts = ["-c:a", "aac", "-b:a", "192k"]
+            click.echo(f"  Audio: Re-encoding {audio_codec or 'unknown'} to AAC")
+    else:
+        # Default: re-encode everything for maximum compatibility
+        video_opts = ["-c:v", "libx264", "-crf", str(quality), "-preset", "medium"]
+        audio_opts = ["-c:a", "aac", "-b:a", "192k"]
+        if codec_info:
+            click.echo(f"  Re-encoding: {codec_info.get('video_codec', 'unknown')} → H.264, {codec_info.get('audio_codec', 'unknown')} → AAC")
+        else:
+            click.echo(f"  Re-encoding to H.264/AAC")
+    
+    # Build ffmpeg command
+    cmd = [
+        "ffmpeg",
+        "-i", str(video_path),
+        *video_opts,
+        *audio_opts,
+        "-movflags", "+faststart",  # Enable streaming
+    ]
+    
+    # Add metadata if date provided
+    if date:
+        # Convert EXIF date format to ISO 8601 for ffmpeg
+        # YYYY:MM:DD HH:MM:SS -> YYYY-MM-DDTHH:MM:SS
+        iso_date = date.replace(":", "-", 2).replace(" ", "T")
+        cmd.extend(["-metadata", f"creation_time={iso_date}"])
+    
+    cmd.append(str(output_path))
+    
+    click.echo(f"Converting: {video_path.name} -> {output_path.name}")
+    
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        
+        if result.returncode != 0:
+            click.echo(f"Error converting {video_file}:", err=True)
+            click.echo(result.stderr, err=True)
+            return False
+        
+        # Verify output file was created
+        if not output_path.exists() or output_path.stat().st_size == 0:
+            click.echo(f"Error: Output file not created or is empty: {output_path}", err=True)
+            return False
+        
+        # Show file sizes
+        original_size = video_path.stat().st_size / (1024 * 1024)  # MB
+        new_size = output_path.stat().st_size / (1024 * 1024)  # MB
+        click.echo(f"✓ Successfully converted: {output_path}")
+        click.echo(f"  Size: {original_size:.1f} MB → {new_size:.1f} MB ({new_size/original_size*100:.1f}%)")
+        
+        # Delete source file if requested
+        if delete_source:
+            try:
+                video_path.unlink()
+                click.echo(f"✓ Deleted source file: {video_path}")
+            except Exception as e:
+                click.echo(f"Warning: Could not delete source file: {e}", err=True)
+        
+        return True
+        
+    except FileNotFoundError:
+        click.echo("Error: ffmpeg not found. Please install it first:", err=True)
+        click.echo("  Ubuntu/Debian: sudo apt install ffmpeg", err=True)
+        click.echo("  macOS: brew install ffmpeg", err=True)
+        return False
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        return False
+
+
+@click.command()
+@click.argument('files', nargs=-1, required=True, type=click.Path(exists=True))
+@click.option(
+    '--date',
+    '-d',
+    help='Set creation date metadata (format: "YYYY:MM:DD HH:MM:SS" or "YYYY:MM:DD")',
+)
+@click.option(
+    '--keep-source',
+    is_flag=True,
+    help='Keep original files after conversion (default: delete them)',
+)
+@click.option(
+    '--output-dir',
+    '-o',
+    type=click.Path(file_okay=False, dir_okay=True),
+    help='Output directory (default: same as source file)',
+)
+@click.option(
+    '--quality',
+    '-q',
+    type=click.IntRange(0, 51),
+    default=18,
+    help='Video quality for re-encoding (0-51, lower is better, default: 18)',
+)
+@click.option(
+    '--fast',
+    is_flag=True,
+    help='Try to copy codecs when possible (faster but may have compatibility issues)',
+)
+def main(files, date, keep_source, output_dir, quality, fast):
+    """
+    Convert various video formats to MP4 with proper codec handling.
+    
+    Supported formats: AVI, MOV, WMV, FLV, MKV, WEBM, M4V, 3GP, MPG, MPEG, VOB, OGV
+    
+    By default, source files are deleted after successful conversion.
+    
+    \b
+    Examples:
+      # Convert all videos in current directory
+      to-mp4 *.avi *.mov *.mkv
+      
+      # Convert and keep source files
+      to-mp4 *.avi --keep-source
+      
+      # Convert with metadata date
+      to-mp4 *.mov --date "2010:01:01"
+      
+      # Fast mode (copy codecs when possible)
+      to-mp4 *.mov --fast
+      
+      # Convert to specific output directory
+      to-mp4 *.avi --output-dir /path/to/output
+      
+      # High quality conversion
+      to-mp4 *.avi --quality 15
+    """
+    # Validate date format if provided
+    if date:
+        # Add default time if only date provided
+        if len(date.split()) == 1:
+            date = f"{date} 00:00:00"
+        
+        date_parts = date.replace(" ", ":").split(":")
+        if len(date_parts) != 6:
+            click.echo("Error: Date must be in format YYYY:MM:DD or YYYY:MM:DD HH:MM:SS", err=True)
+            sys.exit(1)
+    
+    # Create output directory if specified
+    if output_dir:
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Filter to only convertible video files
+    video_files = [f for f in files if Path(f).suffix.lower() in CONVERTIBLE_FORMATS]
+    
+    if not video_files:
+        click.echo("Error: No convertible video files found in input", err=True)
+        click.echo(f"Supported formats: {', '.join(sorted(CONVERTIBLE_FORMATS))}", err=True)
+        sys.exit(1)
+    
+    click.echo(f"Converting {len(video_files)} video file(s) to MP4...\n")
+    
+    # Convert each file
+    successful = 0
+    failed = 0
+    
+    for video_file in video_files:
+        if convert_video_to_mp4(
+            video_file,
+            date=date,
+            delete_source=not keep_source,
+            output_dir=output_dir,
+            quality=quality,
+            fast=fast
+        ):
+            successful += 1
+        else:
+            failed += 1
+        click.echo()  # Blank line between files
+    
+    # Summary
+    click.echo(f"\nConversion complete:")
+    click.echo(f"  ✓ Successful: {successful}")
+    if failed > 0:
+        click.echo(f"  ✗ Failed: {failed}")
+    
+    sys.exit(0 if failed == 0 else 1)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#
+# git open - open the current repo's web remote in a browser.
+#
+# Prefers the open-remote gem (github.com/jeremywrnr/open-remote), which knows
+# how to handle non-GitHub remotes -- the Gitea mirror at git.jeremywrnr.com,
+# for instance, which `gh` will not touch. Falls back to the GitHub CLI so this
+# still works on a machine where the gem is not installed yet.
+#
+# Named git-open so `git open` finds it on PATH; no gitconfig alias needed.
+
+set -euo pipefail
+
+if command -v open-remote >/dev/null 2>&1; then
+    exec open-remote "$@"
+fi
+
+if command -v gh >/dev/null 2>&1; then
+    exec gh browse "$@"
+fi
+
+echo "git open: needs either the open-remote gem or the gh CLI." >&2
+echo "  gem install open-remote     # or: cd ~/Code/dotfiles && ./install.sh" >&2
+exit 127

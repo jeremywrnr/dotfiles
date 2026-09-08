@@ -1,0 +1,284 @@
+#!/usr/bin/env bash
+#
+# conv - convert files between formats.
+#
+# Replaces a drawer full of one-line wrappers (heic-to-jpg, jpg-to-png,
+# webp-to-png, webp-to-gif, svg-to-png, svg-to-pdf, mp4-to-gif, qta-to-mp3,
+# flac-to-mp3, image-to-jpg, ai-to-svg) with one dispatcher, because almost
+# every one of them was a single ffmpeg or ImageMagick call wearing a costume.
+#
+# Sources are KEPT by default. -d deletes them, but only after the output
+# exists and is non-empty.
+
+set -uo pipefail
+
+PROG=${0##*/}
+
+usage() {
+    cat <<EOF
+usage: $PROG [-d] [-n] <format> [file ...]
+
+Converts each file to <format>. With no files, converts everything in the
+current directory that can become <format>.
+
+  -d   delete each source after its output is written (default: keep)
+  -n   dry run, print what would happen
+  -h   this message
+
+formats: jpg jpeg png gif bmp tiff webp pdf svg mp4 mp3 wav
+
+examples:
+  $PROG png *.webp          # webp -> png
+  $PROG jpg                 # everything convertible in . -> jpg
+  $PROG mp3 *.flac          # tags carry over
+  $PROG gif screen.mp4      # palette-optimized
+  $PROG mp4 *.avi           # delegates to to-mp4, which stream-copies
+EOF
+}
+
+die() { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
+warn() { printf '%s: %s\n' "$PROG" "$*" >&2; }
+
+# Tell the user how to get a missing backend, for the platform they are on.
+need() {
+    local tool=$1 apt=$2 brew=$3
+    command -v "$tool" >/dev/null 2>&1 && return 0
+    warn "$tool is required for this conversion but is not installed."
+    if [[ "$OSTYPE" == darwin* ]]; then
+        warn "  brew install $brew"
+    else
+        warn "  sudo apt install $apt"
+    fi
+    return 1
+}
+
+# ImageMagick 7 is `magick`; 6 is `convert`. Prefer 7.
+magick_cmd() {
+    if command -v magick >/dev/null 2>&1; then echo magick
+    elif command -v convert >/dev/null 2>&1; then echo convert
+    fi
+}
+
+inkscape_cmd() {
+    if command -v inkscape >/dev/null 2>&1; then
+        echo inkscape
+    elif [[ -x /Applications/Inkscape.app/Contents/MacOS/inkscape ]]; then
+        echo /Applications/Inkscape.app/Contents/MacOS/inkscape
+    fi
+}
+
+RASTER='jpg jpeg png gif bmp tiff tif webp heic heif avif'
+AUDIO='mp3 flac wav m4a aac ogg opus wma qta aiff'
+VIDEO='mp4 mov avi mkv wmv flv webm m4v 3gp mpg mpeg vob ogv'
+
+in_set() { # in_set <needle> <space-separated set>
+    local n=$1 s=$2 w
+    for w in $s; do [[ "$n" == "$w" ]] && return 0; done
+    return 1
+}
+
+DELETE=0
+DRYRUN=0
+while getopts ':dnh' opt; do
+    case $opt in
+        d) DELETE=1 ;;
+        n) DRYRUN=1 ;;
+        h) usage; exit 0 ;;
+        \?) die "unknown option -$OPTARG (try -h)" ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+[[ $# -ge 1 ]] || { usage >&2; exit 1; }
+
+TARGET=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+TARGET=${TARGET#.}
+shift
+
+# What can become the target format? Used to build the default file list.
+sources_for() {
+    case $1 in
+        jpg|jpeg|png|gif|bmp|tiff|webp) echo "$RASTER svg" ;;
+        pdf)  echo "svg $RASTER" ;;
+        svg)  echo "ai" ;;
+        mp4)  echo "$VIDEO" ;;
+        mp3|wav) echo "$AUDIO $VIDEO" ;;
+        *) die "don't know how to produce '.$1' (try -h)" ;;
+    esac
+}
+
+files=("$@")
+if [[ ${#files[@]} -eq 0 ]]; then
+    shopt -s nullglob nocaseglob 2>/dev/null
+    for ext in $(sources_for "$TARGET"); do
+        [[ "$ext" == "$TARGET" ]] && continue
+        for f in ./*."$ext"; do files+=("$f"); done
+    done
+    shopt -u nocaseglob 2>/dev/null
+    [[ ${#files[@]} -eq 0 ]] && die "nothing in $PWD can be converted to .$TARGET"
+    # Sweeping up the cwd is fine while sources are kept; combining it with -d
+    # is how you delete a directory you only meant to glance at.
+    (( DELETE )) && die "-d needs an explicit file list, not the whole of $PWD"
+    printf '%s: %d file(s) in %s\n' "$PROG" "${#files[@]}" "$PWD"
+else
+    sources_for "$TARGET" >/dev/null   # validate the target early
+fi
+
+run() {
+    if (( DRYRUN )); then printf '  would run: %s\n' "$*"; return 0; fi
+    "$@"
+}
+
+# convert_one <infile> <outfile> <src-ext>
+convert_one() {
+    local in=$1 out=$2 ext=$3 m
+
+    # video/audio -> mp4: to-mp4 inspects codecs and stream-copies when it can,
+    # which is worth far more than anything a generic path could do here.
+    if [[ "$TARGET" == mp4 ]]; then
+        command -v to-mp4 >/dev/null 2>&1 || { warn "to-mp4 not found on PATH"; return 1; }
+        # --fast is what turns on the codec inspection + stream copy; without
+        # it to-mp4 re-encodes, which is the whole reason we delegate.
+        local args=("$in" --fast)
+        (( DELETE )) || args+=(--keep-source)
+        run to-mp4 "${args[@]}"
+        return
+    fi
+
+    # ai -> svg
+    if [[ "$ext" == ai ]]; then
+        local ink; ink=$(inkscape_cmd)
+        [[ -n "$ink" ]] || { need inkscape inkscape inkscape; return 1; }
+        run "$ink" "$in" --export-area-drawing --export-plain-svg="$out"
+        return
+    fi
+
+    # svg -> png/pdf. rsvg-convert is the sharpest of the three.
+    if [[ "$ext" == svg ]]; then
+        # rsvg-convert only writes png/pdf/ps/svg. Sending jpg through it would
+        # emit a PNG wearing a .jpg extension, so hand those to ImageMagick.
+        if in_set "$TARGET" 'png pdf' && command -v rsvg-convert >/dev/null 2>&1; then
+            # The old svg->pdf->pdftoppm route rasterized at pdftoppm's default
+            # 150 DPI. rsvg-convert defaults to 90, so images came out 40%
+            # smaller and it read as a rendering bug rather than a flag.
+            run rsvg-convert -f "$TARGET" --dpi-x 150 --dpi-y 150 -o "$out" "$in"
+            return
+        fi
+        m=$(magick_cmd)
+        if [[ -n "$m" ]]; then run "$m" -background none "$in" "$out"; return; fi
+        local ink; ink=$(inkscape_cmd)
+        if [[ -n "$ink" ]]; then run "$ink" "$in" --export-type="$TARGET" --export-filename="$out"; return; fi
+        need rsvg-convert librsvg2-bin librsvg
+        return 1
+    fi
+
+    # audio/video -> audio, or video -> gif
+    if in_set "$ext" "$AUDIO" || in_set "$ext" "$VIDEO"; then
+        need ffmpeg ffmpeg ffmpeg || return 1
+        case $TARGET in
+            mp3)
+                # ffmpeg maps FLAC/Vorbis/QuickTime tags onto ID3 by itself, so
+                # the old metaflac-then-lame pipeline bought nothing.
+                run ffmpeg -hide_banner -loglevel warning -y -i "$in" \
+                    -c:a libmp3lame -q:a 2 "$out" ;;
+            wav)
+                run ffmpeg -hide_banner -loglevel warning -y -i "$in" "$out" ;;
+            gif)
+                # One pass to build a palette, one to apply it. A bare
+                # `ffmpeg -i in.mp4 out.gif` dithers against 256 fixed colors
+                # and looks it.
+                run ffmpeg -hide_banner -loglevel warning -y -i "$in" \
+                    -vf 'fps=15,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse' \
+                    "$out" ;;
+            *)
+                run ffmpeg -hide_banner -loglevel warning -y -i "$in" "$out" ;;
+        esac
+        return
+    fi
+
+    # raster -> raster
+    if in_set "$ext" "$RASTER"; then
+        # Animated webp -> gif is a video problem, and ffmpeg handles the
+        # frames natively; the old script demuxed them by hand with webpmux.
+        if [[ "$ext" == webp && "$TARGET" == gif ]] && command -v ffmpeg >/dev/null 2>&1; then
+            run ffmpeg -hide_banner -loglevel warning -y -i "$in" "$out"
+            return
+        fi
+
+        m=$(magick_cmd)
+        if [[ -z "$m" ]]; then
+            # sips can do HEIC on macOS even with no ImageMagick delegate.
+            if [[ "$OSTYPE" == darwin* ]] && command -v sips >/dev/null 2>&1 \
+               && in_set "$TARGET" 'jpg jpeg png'; then
+                run sips -s format "${TARGET/jpg/jpeg}" "$in" --out "$out" >/dev/null
+                return
+            fi
+            need convert imagemagick imagemagick
+            return 1
+        fi
+
+        local src="$in"
+        # First frame only, for animated gif/webp sources.
+        in_set "$ext" 'gif webp' && ! in_set "$TARGET" 'gif webp' && src="$in[0]"
+
+        local flags=()
+        # JPEG has no alpha; flatten onto white rather than letting it go black.
+        in_set "$TARGET" 'jpg jpeg' && flags=(-background white -alpha remove -alpha off -quality 95)
+
+        run "$m" "$src" "${flags[@]}" "$out" && return
+
+        # apt's ImageMagick is built without a HEIC delegate, and Homebrew's
+        # sometimes is too, so both platforms need a fallback.
+        if in_set "$ext" 'heic heif'; then
+            if [[ "$OSTYPE" == darwin* ]] && command -v sips >/dev/null 2>&1; then
+                run sips -s format "${TARGET/jpg/jpeg}" "$in" --out "$out" >/dev/null
+                return
+            elif command -v heif-convert >/dev/null 2>&1; then
+                run heif-convert -q 92 "$in" "$out"
+                return
+            else
+                need heif-convert libheif-examples libheif
+                return 1
+            fi
+        fi
+        return 1
+    fi
+
+    warn "no rule for .$ext -> .$TARGET"
+    return 1
+}
+
+ok=0 fail=0 skip=0
+for f in "${files[@]}"; do
+    [[ -f "$f" ]] || { warn "not a file: $f"; ((skip++)); continue; }
+
+    base=${f##*/}; dir=${f%/*}; [[ "$dir" == "$f" ]] && dir=.
+    ext=${base##*.}; ext=$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')
+    stem=${base%.*}
+
+    if [[ "$ext" == "$TARGET" ]]; then ((skip++)); continue; fi
+    if [[ "$ext" == "$base" ]]; then warn "no extension: $f"; ((skip++)); continue; fi
+
+    out="$dir/$stem.$TARGET"
+    if [[ -e "$out" ]]; then warn "exists, skipping: $out"; ((skip++)); continue; fi
+
+    printf '%s -> %s\n' "$f" "$out"
+    if convert_one "$f" "$out" "$ext"; then
+        if (( DRYRUN )); then ((ok++)); continue; fi
+        # to-mp4 writes its own output path, so only verify when we own it.
+        if [[ "$TARGET" != mp4 && ( ! -s "$out" ) ]]; then
+            warn "produced nothing: $out"; rm -f "$out"; ((fail++)); continue
+        fi
+        (( DELETE )) && [[ "$TARGET" != mp4 ]] && rm -f "$f"
+        ((ok++))
+    else
+        [[ "$TARGET" != mp4 ]] && rm -f "$out" 2>/dev/null
+        ((fail++))
+    fi
+done
+
+printf '\n%d converted' "$ok"
+(( skip )) && printf ', %d skipped' "$skip"
+(( fail )) && printf ', %d failed' "$fail"
+printf '\n'
+(( fail == 0 ))
