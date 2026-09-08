@@ -60,6 +60,17 @@ echo "Git:"
 link gitconfig    .gitconfig
 link gitignore    .gitignore_global
 
+# gitconfig includes ~/.gitconfig.local for anything that cannot be shared
+# between machines. git has conditional includes for gitdir and branch but not
+# for OS, so the credential helper has to be seeded here.
+if [ ! -f "$HOME/.gitconfig.local" ]; then
+  if [ -n "$HAVE_BREW" ]; then GIT_CRED=osxkeychain; else GIT_CRED="cache --timeout=86400"; fi
+  printf '[credential]\n\thelper = %s\n' "$GIT_CRED" > "$HOME/.gitconfig.local"
+  echo "  seeded: ~/.gitconfig.local (credential.helper = $GIT_CRED)"
+else
+  echo "  ok: ~/.gitconfig.local"
+fi
+
 echo ""
 echo "Vim:"
 if [ ! -f "$HOME/.vim/autoload/plug.vim" ]; then
