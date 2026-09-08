@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+# convert git remotes (on github) between https and ssh
+# usage: git-remote-setter [https|ssh] [dir ...]
+# defaults to current dir + ../dotfiles if no dirs given
+
+function checkargs {
+    echo 'usage: git-remote-setter [https|ssh] [dir ...]'
+    exit 1
+}
+
+[[ $# -lt 1 ]] && checkargs
+
+protocol="$1"
+shift
+
+if [[ $protocol != 'https' && $protocol != 'ssh' ]]; then
+    checkargs
+fi
+
+# default: current repo + sibling dotfiles
+if [[ $# -eq 0 ]]; then
+    dirs=("." "../dotfiles")
+else
+    dirs=("$@")
+fi
+
+for dir in "${dirs[@]}"; do
+    if [[ ! -d "$dir/.git" ]]; then
+        echo "skipping $dir (not a git repo)"
+        continue
+    fi
+
+    current=$(git -C "$dir" remote get-url origin 2>/dev/null)
+    if [[ -z "$current" ]]; then
+        echo "skipping $dir (no origin remote)"
+        continue
+    fi
+
+    # parse host, user, repo from either ssh or https url
+    if [[ "$current" =~ ^git@([^:]+):([^/]+)/(.+)\.git$ ]]; then
+        HOST="${BASH_REMATCH[1]}"
+        USER="${BASH_REMATCH[2]}"
+        REPO="${BASH_REMATCH[3]}"
+    elif [[ "$current" =~ ^https://([^/]+)/([^/]+)/(.+)\.git$ ]]; then
+        HOST="${BASH_REMATCH[1]}"
+        USER="${BASH_REMATCH[2]}"
+        REPO="${BASH_REMATCH[3]}"
+    else
+        echo "skipping $dir (unrecognized remote format: $current)"
+        continue
+    fi
+
+    if [[ $protocol == 'https' ]]; then
+        new_url="https://$HOST/$USER/$REPO.git"
+    else
+        new_url="git@$HOST:$USER/$REPO.git"
+    fi
+
+    git -C "$dir" remote set-url origin "$new_url"
+    echo "$dir: $new_url"
+done

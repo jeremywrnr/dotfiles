@@ -75,6 +75,17 @@ link vim/mappings.vim   .vim/mappings.vim
 link vim/functions.vim  .vim/functions.vim
 
 echo ""
+echo "Scripts:"
+# bin/ is on PATH via zsh/00-path.zsh, so a pull that adds a script just
+# works -- but git only tracks the executable bit for files it created as
+# executable, so restore it for any that lost it.
+if [ -d "$DOTFILES/bin" ]; then
+  find "$DOTFILES/bin" -maxdepth 1 -type f ! -name '*.md' ! -perm -u+x \
+    -exec chmod +x {} + 2>/dev/null || true
+  echo "  ok: $(find "$DOTFILES/bin" -maxdepth 1 -type f ! -name '*.md' | wc -l | tr -d ' ') scripts on PATH"
+fi
+
+echo ""
 echo "Tmux:"
 link tmux.conf    .tmux.conf
 
