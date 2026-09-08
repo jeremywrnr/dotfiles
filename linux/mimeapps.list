@@ -1,0 +1,13 @@
+
+[Default Applications]
+x-scheme-handler/discord-455712169795780630=discord-455712169795780630.desktop
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
+application/x-desktop=desktop-entry-launcher.desktop
+text/plain=dev.zed.Zed.desktop
+text/markdown=dev.zed.Zed.desktop
+text/x-python=dev.zed.Zed.desktop
+text/x-python3=dev.zed.Zed.desktop
+text/x-ruby=dev.zed.Zed.desktop
+text/x-go=dev.zed.Zed.desktop
+text/rust=dev.zed.Zed.desktop
+text/x-shellscript=dev.zed.Zed.desktop
