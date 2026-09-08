@@ -1,0 +1,78 @@
+# herdr — terminal workspace manager. Bindings mirror tmux.conf where herdr has
+# an equivalent, so muscle memory carries over between the two.
+onboarding = false
+
+[theme]
+# Match Zed's One Light / One Dark pair, and follow the host terminal's
+# appearance rather than pinning one of them.
+auto_switch = false
+dark_name = "one-dark"
+light_name = "one-light"
+
+name = "tokyo-night"
+[theme.custom]
+# alacritty.toml runs at opacity 0.9 with blur. herdr paints an opaque panel
+# background over that by default; "reset" lets the blur through.
+panel_bg = "reset"
+
+[keys]
+# tmux uses C-a; ctrl+x here so a herdr prefix and a tmux prefix can coexist
+# in the same keystroke space (herdr's default C-b collides with readline).
+# Note zsh binds 17 sequences under ^X, ^X^E (edit-command-line) among them.
+prefix = "ctrl+x"
+
+# Jump straight to the n-th tab. Replaces the default "prefix+1..9" rather than
+# adding to it — an action gets exactly one binding. ctrl+<digit> is only
+# distinguishable to a terminal that speaks the kitty keyboard protocol;
+# Alacritty does. Over ssh into a plain xterm, fall back to "alt+1..9".
+switch_tab = "ctrl+1..9"
+
+# Agents are ordered by attention, not by tab position, so alt+n and ctrl+n
+# deliberately land in different places. All three are unbound by default.
+focus_agent = "alt+1..9"
+next_agent = "prefix+alt+n"
+previous_agent = "prefix+alt+p"
+
+# tmux ports. h/j/k/l pane focus, prefix+c new tab, prefix+- horizontal split,
+# and prefix+n/p tab cycling are already herdr defaults and need no lines here.
+split_vertical = "prefix+|"      # tmux: bind | split-window -h
+last_pane = "prefix+semicolon"   # tmux: prefix ; (unset in herdr by default)
+copy_mode = "prefix+["           # tmux: prefix [
+
+[ui]
+# tmux.conf sets automatic-rename on; don't prompt for a name on every new tab.
+prompt_new_tab_name = false
+
+# tmux: set -g status-right '%H:%M:%S %m/%d'
+tab_bar_right = [{ type = "datetime", format = "%H:%M:%S %m/%d" }]
+
+# Start collapsed and give the columns back to the panes; prefix+b toggles it.
+# This is read at launch, not on reload-config. The default collapsed_mode
+# ("compact") keeps a narrow status rail, so agent state is still visible
+# without expanding -- "hidden" would drop to zero width.
+sidebar_start_collapsed = true
+
+[ui.sidebar.agents]
+# Drop the default "machine" column — it only earns its width with `herdr
+# --remote` in play.
+#
+# $dir over "workspace": the workspace token is the space label, fixed at the
+# cwd the space was created in, so an agent started after a `cd` gets filed
+# under the wrong repo. $dir is pane metadata pushed by the chpwd hook in
+# zshrc and tracks the pane itself. Panes that never ran that hook render the
+# row without it.
+rows = [["state_icon", "$dir", "tab"], ["terminal_title_stripped"]]
+
+[ui.toast]
+# Off by default. With several agents blocking on input at once, the whole
+# point is finding out without polling the sidebar.
+delivery = "herdr"
+
+[advanced]
+# tmux: set -g history-limit 100000. herdr caps by bytes, not lines; 10MB
+# (the default) is roughly 100k lines, so 50MB buys real headroom for agent
+# panes, which scroll far faster than a shell.
+scrollback_limit_bytes = 50000000
+
+[ui.sound]
+enabled = true

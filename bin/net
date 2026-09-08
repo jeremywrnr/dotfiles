@@ -1,0 +1,56 @@
+#!/usr/bin/env perl
+
+use strict;
+use Time::HiRes qw(sleep);
+use Getopt::Long;
+
+# joining error messages
+open STDERR, '>&STDOUT';
+
+my $period = 500;
+my $quiet = '';
+my $force = '';
+GetOptions (
+    "period=i" => \$period, # in milliseconds
+    "quiet"  => \$quiet,
+    "force"  => \$force
+) or die("Error in command line arguments\n");
+my $rate = $period / 1000.0;
+
+# ping timeout flag differs by OS: -t on macOS, -W on Linux
+my $timeout_flag = ($^O eq 'darwin') ? '-t' : '-W';
+my $net = "ping -c 1 $timeout_flag 1 8.8.8.8 2>&1 >/dev/null";
+
+# get current wifi network name (OS-specific)
+my $wifi;
+if ($^O eq 'darwin') {
+    $wifi = `networksetup -getairportnetwork en0`;
+    $wifi =~ s/.*: //;
+} else {
+    $wifi = `iwgetid -r 2>/dev/null || nmcli -t -f active,ssid dev wifi 2>/dev/null | grep '^yes' | cut -d: -f2`;
+}
+chomp($wifi);
+$wifi ||= 'unknown';
+
+# first time entering loop
+print "Testing $wifi...\n";
+`$net`;
+my $good = ($? =~ /^(0|2)$/); # ping exited with 0
+my $state = "DOWN";
+my $try = 0;
+
+# keep testing until loop exited, success
+# if the host cannot be found look again
+while ($force or ! $good) {
+    $good = ($? =~ /^(0|2)$/); # ping exited with 0
+    if ($good) { $state = "GOOD"; }
+    $try++; # keep track of count
+    sleep($rate); # test every 500 ms
+    if (! $quiet) { printf "$state\t%.1d\t%.2f (s)\r", $try, ($try * $rate); }
+    `$net`;
+}
+
+# finally, show status and/or downtime
+if ($try) { printf "Total downtime - %.1f (s).\n", ($try * $rate); }
+print "System connection restored.\n";
+
