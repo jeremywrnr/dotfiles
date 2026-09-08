@@ -103,6 +103,15 @@ launchctl bootstrap "gui/$UID" "$PLIST"
 echo "  loaded: $AGENT (light/dark follows macOS appearance)"
 
 echo ""
+echo "Herdr:"
+# herdr writes logs, sockets, and session.json into this same directory, so only
+# config.toml is linked -- never the directory itself.
+link herdr.toml   .config/herdr/config.toml
+if command -v herdr &>/dev/null && herdr status server &>/dev/null; then
+  herdr server reload-config >/dev/null && echo "  reloaded running server"
+fi
+
+echo ""
 echo "Zed:"
 link zed/settings.json .config/zed/settings.json
 
