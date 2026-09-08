@@ -43,6 +43,50 @@ if [ -n "$HAVE_BREW" ] && [ -f "$DOTFILES/Brewfile" ]; then
   echo ""
 fi
 
+if command -v apt-get &>/dev/null; then
+  echo "APT keys:"
+  KEYRING=/etc/apt/keyrings/yarn-archive-keyring.gpg
+  if [ ! -f "$KEYRING" ]; then
+    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | sudo tee "$KEYRING" > /dev/null
+    echo "  installed: yarn keyring"
+  else
+    echo "  ok: yarn keyring"
+  fi
+  echo ""
+
+  # Packages the Brewfile covers on macOS. Without this block they were simply
+  # absent on Linux -- the media backends behind bin/conv, bin/to-mp4 and
+  # bin/set-media-date were commands that could never run, and `tree` was an
+  # alias in zshrc pointing at a binary that was never installed.
+  echo "APT packages:"
+  # heif-convert (libheif-examples) matters because apt's ImageMagick is built
+  # without a HEIC delegate, so `conv jpg *.heic` has no backend without it.
+  APT_WANT="ffmpeg imagemagick librsvg2-bin libimage-exiftool-perl rdfind libheif-examples tree iperf3"
+  # rbenv compiles ruby from source, so these are its build dependencies.
+  APT_WANT="$APT_WANT autoconf patch libssl-dev libyaml-dev libreadline-dev libffi-dev libgmp-dev libncurses-dev libdb-dev uuid-dev"
+  # Stand-ins for macOS `mo status`: btop covers CPU, memory, disk and
+  # network. apt ships btop 1.3.0, which predates btop's own GPU support
+  # (added in 1.4.0), so the iGPU needs a second tool. nvtop is NOT it --
+  # Noble only has 3.0.2, which on i915 reports utilization and warns that
+  # memory, power, fan and temperature are unsupported. intel_gpu_top reads
+  # the i915 perf counters directly: per-engine busy, frequency, RC6 and
+  # IMC bandwidth. It needs perf access, hence the setcap below.
+  APT_WANT="$APT_WANT btop intel-gpu-tools"
+  APT_MISSING=""
+  for p in $APT_WANT; do
+    dpkg -s "$p" &>/dev/null || APT_MISSING="$APT_MISSING $p"
+  done
+  if [ -n "$APT_MISSING" ]; then
+    echo "  installing:$APT_MISSING"
+    # This script runs under `set -e`; a failed install must not abort the
+    # symlinking that follows.
+    sudo apt-get install -y $APT_MISSING || echo "  WARNING: apt install failed"
+  else
+    echo "  ok: $APT_WANT"
+  fi
+  echo ""
+fi
+
 echo "Shell:"
 link zshrc        .zshrc
 link bashrc       .bashrc
@@ -190,8 +234,84 @@ if command -v herdr &>/dev/null && herdr status server &>/dev/null; then
 fi
 
 echo ""
+echo "Fonts:"
+# Alacritty's configured family must actually exist. If it doesn't, fontconfig
+# silently falls back to a proportional face (Noto Sans), which Alacritty then
+# draws on a fixed cell grid — every narrow glyph gets padded and words come out
+# looking like "i n s t a l l".
+if [ -n "$HAVE_BREW" ]; then
+  echo "  skipped (font-jetbrains-mono-nerd-font cask in Brewfile)"
+elif fc-list :family 2>/dev/null | grep -qi "JetBrainsMono Nerd Font Mono"; then
+  echo "  ok: JetBrainsMono Nerd Font Mono"
+else
+  FONTDIR="$HOME/.local/share/fonts/JetBrainsMonoNerdFont"
+  FONTTMP="$(mktemp -d)"
+  trap 'rm -rf "$FONTTMP"' EXIT
+  echo "  downloading JetBrainsMono Nerd Font..."
+  # .tar.xz, not the .zip: same 32 faces, 7MB instead of 134MB
+  curl -fsSL -o "$FONTTMP/JetBrainsMono.tar.xz" \
+    https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz
+  mkdir -p "$FONTDIR"
+  # Only the Mono + default faces. The NL (no-ligature) and Propo (proportional)
+  # variants ship in the same archive; Propo would reintroduce the very bug this
+  # block exists to prevent.
+  tar -xJf "$FONTTMP/JetBrainsMono.tar.xz" -C "$FONTDIR" --wildcards \
+    'JetBrainsMonoNerdFont-*.ttf' 'JetBrainsMonoNerdFontMono-*.ttf'
+  fc-cache -f "$HOME/.local/share/fonts" >/dev/null
+  echo "  installed: $FONTDIR"
+fi
+
+echo ""
 echo "Zed:"
 link zed/settings.json .config/zed/settings.json
+
+echo ""
+echo "MIME associations:"
+link linux/mimeapps.list             .config/mimeapps.list
+link linux/desktop-entry-launcher.desktop .local/share/applications/desktop-entry-launcher.desktop
+
+# AppImages live in ~/Applications behind an unversioned symlink, so upgrading
+# only means repointing the symlink — the .desktop entry keeps working.
+if [ -e "$HOME/Applications/Slippi-Launcher.AppImage" ]; then
+  link linux/slippi-launcher.desktop .local/share/applications/slippi-launcher.desktop
+else
+  echo "  skip: linux/slippi-launcher.desktop (no ~/Applications/Slippi-Launcher.AppImage)"
+fi
+
+if command -v update-desktop-database &>/dev/null; then
+  update-desktop-database "$HOME/.local/share/applications/"
+  echo "  updated desktop database"
+fi
+
+echo ""
+echo "GameCube adapter:"
+link linux/gamecube/wii-u-gc-adapter.service .config/systemd/user/wii-u-gc-adapter.service
+# Deliberately not enabled at boot: while it runs, Dolphin cannot claim the
+# adapter over libusb and reports "Adapter Not Detected". See linux/gamecube/readme.md.
+if command -v systemctl &>/dev/null; then
+  systemctl --user daemon-reload 2>/dev/null || true
+fi
+if [ -e /etc/udev/rules.d/51-gcadapter.rules ] &&
+   cmp -s "$DOTFILES/linux/gamecube/51-gcadapter.rules" /etc/udev/rules.d/51-gcadapter.rules; then
+  echo "  ok: /etc/udev/rules.d/51-gcadapter.rules"
+else
+  echo "  udev rule needs root, run:"
+  echo "    sudo install -m644 $DOTFILES/linux/gamecube/51-gcadapter.rules /etc/udev/rules.d/51-gcadapter.rules"
+  echo "    sudo udevadm control --reload-rules && sudo udevadm trigger"
+fi
+
+echo ""
+echo "GPU monitoring:"
+# intel_gpu_top reads i915 perf counters, which are privileged. Without
+# CAP_PERFMON it exits with "Failed to initialize PMU" unless run under sudo.
+if ! command -v intel_gpu_top &>/dev/null; then
+  echo "  skipped (intel_gpu_top not installed)"
+elif getcap /usr/bin/intel_gpu_top 2>/dev/null | grep -q cap_perfmon; then
+  echo "  ok: cap_perfmon on intel_gpu_top"
+else
+  echo "  perf access needs root, run:"
+  echo "    sudo setcap cap_perfmon+ep /usr/bin/intel_gpu_top"
+fi
 
 echo ""
 echo "Claude Code:"
@@ -274,6 +394,14 @@ if [ -d "$HOME/.oh-my-zsh/custom/themes" ]; then
   link oh-my-zsh/themes/jwrnr.zsh-theme .oh-my-zsh/custom/themes/jwrnr.zsh-theme
 else
   echo "  skipped (oh-my-zsh not installed)"
+fi
+
+echo ""
+echo "GNOME Settings:"
+if command -v gsettings &>/dev/null && [ -f "$DOTFILES/linux/gnome-settings.sh" ]; then
+  "$DOTFILES/linux/gnome-settings.sh"
+else
+  echo "  skipped (gsettings not found or linux/gnome-settings.sh missing)"
 fi
 
 echo ""
