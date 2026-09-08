@@ -1,0 +1,12 @@
+[Unit]
+Description=Wii U / GameCube controller adapter driver
+Documentation=https://github.com/ToadKing/wii-u-gc-adapter
+
+[Service]
+Type=simple
+ExecStart=%h/Code/wii-u-gc-adapter/wii-u-gc-adapter
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

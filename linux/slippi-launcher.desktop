@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Slippi Launcher
+Comment=Launch Slippi Online, browse and watch saved replays
+Exec=/home/jeremy/Applications/Slippi-Launcher.AppImage --no-sandbox %U
+Icon=slippi-launcher
+Type=Application
+Terminal=false
+Categories=Game;
+Keywords=melee;smash;slippi;netplay;dolphin;
+StartupWMClass=Slippi Launcher
+MimeType=x-scheme-handler/slippi;

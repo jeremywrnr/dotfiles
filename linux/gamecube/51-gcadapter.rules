@@ -1,0 +1,7 @@
+# Wii U / Input Integrity GameCube controller adapter
+# Let the plugdev group talk to the adapter directly (wii-u-gc-adapter
+# detaches usbhid and drives it over libusb).
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="057e", ATTRS{idProduct}=="0337", TAG+="uaccess", MODE="0660", GROUP="plugdev"
+
+# wii-u-gc-adapter synthesizes the four pads through uinput.
+KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="plugdev", OPTIONS+="static_node=uinput"
