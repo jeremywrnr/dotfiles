@@ -2,8 +2,11 @@
     user  = jeremywrnr
     name  = Jeremy Warner
     email = jeremywrnr@gmail.com
-[credential]
-    helper = osxkeychain
+[include]
+    # per-machine settings that cannot be shared, e.g.
+    #   [credential] helper = osxkeychain   (macOS)
+    #   [credential] helper = cache         (Linux)
+    path = ~/.gitconfig.local
 [push]
     default = current
 [pull]
@@ -16,7 +19,6 @@
     defaultBranch = main
 [alias]
     s= status
-    as= all-status
     a= add -A
     c= commit -am
     d= diff
@@ -28,18 +30,17 @@
     la= log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
     lol = log --graph --decorate --pretty=oneline --abbrev-commit
     lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
-    lb= link-branches
     br= branch
     co= checkout
     ps= push
     pl= pull
     up= pull
-    open = !open-remote
     last= log -p --max-count=1 --word-diff
     alias= config --get-regexp alias
-    ac= add-commit
-    acp= add-commit-push
-    puller= all-puller
+    # was util/git-add-commit-push; pushes the current branch, not a hardcoded one
+    acp= !git add -A && git status && git commit -v && git push origin HEAD
+    # was util/git-historian: interactive rebase back to the root commit
+    historian = !git rebase -i $(git rev-list --max-parents=0 HEAD)
     su= !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
     set-upstream = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
     cob= !git branch --merged main | grep -vE '^[*]|main|master' | xargs -n 1 git branch -d
