@@ -5,6 +5,7 @@ tap "lizardbyte/homebrew"
 tap "mongodb/brew"
 tap "jeremywrnr/tap"
 tap "sass/sass"
+tap "teamookla/speedtest"
 
 # shell
 brew "fzf"
@@ -16,6 +17,8 @@ brew "watch"
 brew "wget"
 brew "htop"
 brew "telnet"
+brew "iperf3"
+brew "speedtest"
 brew "jq"
 
 # git
@@ -30,6 +33,7 @@ brew "rbenv"
 
 # python
 brew "python@3.13"
+brew "uv"
 
 # media -- ffmpeg, imagemagick and these four are the backends bin/conv
 # and bin/set-media-date shell out to.
