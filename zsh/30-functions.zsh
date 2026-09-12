@@ -3,7 +3,7 @@
 # --- nas ------------------------------------------------------------------
 
 to-content() { rsync -avP "$@" nas:/volume1/Content/; }
-to-files()   { rsync -avP "$@" nas:/volume2/Media/; }
+to-media()   { rsync -avP "$@" nas:/volume2/Media/; }
 
 ingest-nas-official() {
     rsync -avhP "$@" nas:/volume2/Media/Music/Library/ && ssh nas 'chgrp -R music /volume2/Media/Music/Library && chmod -R g+rwX /volume2/Media/Music/Library' 2>/dev/null;
