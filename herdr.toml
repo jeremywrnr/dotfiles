@@ -46,11 +46,21 @@ prompt_new_tab_name = false
 # tmux: set -g status-right '%H:%M:%S %m/%d'
 tab_bar_right = [{ type = "datetime", format = "%H:%M:%S %m/%d" }]
 
-# Start collapsed and give the columns back to the panes; prefix+b toggles it.
-# This is read at launch, not on reload-config. The default collapsed_mode
-# ("compact") keeps a narrow status rail, so agent state is still visible
-# without expanding -- "hidden" would drop to zero width.
-sidebar_start_collapsed = true
+# Start expanded: the spaces and agents lists are the reason to run herdr, so
+# pay the columns. prefix+b collapses it when a pane needs the width. This is
+# read at launch, not on reload-config, and the default collapsed_mode
+# ("compact") keeps a narrow status rail on the way back down, so agent state
+# stays visible without expanding -- "hidden" would drop to zero width.
+sidebar_start_collapsed = false
+
+# The Spaces/Agents divider is not a config key: it lives in client state at
+# ~/.local/state/herdr/client-shell/local-<hash of socket path>.json as
+# sidebar_section_split, a 0.1..0.9 fraction of sidebar height for the Spaces
+# half (default 0.5, currently 0.2 -- spaces are few, agents are many). The
+# client reads it at startup and rewrites it from memory whenever the sidebar
+# is dragged or toggled, so edit it with no client attached. The same file's
+# sidebar_collapsed key, once prefix+b has written it, outranks
+# sidebar_start_collapsed above.
 
 [ui.sidebar.agents]
 # Drop the default "machine" column — it only earns its width with `herdr
