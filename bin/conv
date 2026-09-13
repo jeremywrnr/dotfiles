@@ -26,6 +26,7 @@ current directory that can become <format>.
   -h   this message
 
 formats: jpg jpeg png gif bmp tiff webp pdf svg mp4 mp3 wav
+sources also include camera raw (arw, cr2, cr3, nef, orf, raf, rw2, dng, ...)
 
 examples:
   $PROG png *.webp          # webp -> png
@@ -33,6 +34,7 @@ examples:
   $PROG mp3 *.flac          # tags carry over
   $PROG gif screen.mp4      # palette-optimized
   $PROG mp4 *.avi           # delegates to to-mp4, which stream-copies
+  $PROG jpg *.ARW           # camera raw, via sips on macOS
 EOF
 }
 
@@ -66,6 +68,9 @@ inkscape_cmd() {
 }
 
 RASTER='jpg jpeg png gif bmp tiff tif webp heic heif avif'
+# Camera raw. Read-only as far as this script is concerned -- nothing here
+# produces a raw file, they only ever become something else.
+RAW='arw cr2 cr3 nef orf raf rw2 dng pef srw sr2 srf'
 AUDIO='mp3 flac wav m4a aac ogg opus wma qta aiff'
 VIDEO='mp4 mov avi mkv wmv flv webm m4v 3gp mpg mpeg vob ogv'
 
@@ -96,8 +101,8 @@ shift
 # What can become the target format? Used to build the default file list.
 sources_for() {
     case $1 in
-        jpg|jpeg|png|gif|bmp|tiff|webp) echo "$RASTER svg" ;;
-        pdf)  echo "svg $RASTER" ;;
+        jpg|jpeg|png|gif|bmp|tiff|webp) echo "$RASTER $RAW svg" ;;
+        pdf)  echo "svg $RASTER $RAW" ;;
         svg)  echo "ai" ;;
         mp4)  echo "$VIDEO" ;;
         mp3|wav) echo "$AUDIO $VIDEO" ;;
@@ -196,12 +201,41 @@ convert_one() {
     fi
 
     # raster -> raster
-    if in_set "$ext" "$RASTER"; then
+    # Raw joins the raster branch rather than getting its own: once decoded it
+    # is a raster image and wants the same jpeg flattening and quality flags.
+    if in_set "$ext" "$RASTER" || in_set "$ext" "$RAW"; then
         # Animated webp -> gif is a video problem, and ffmpeg handles the
         # frames natively; the old script demuxed them by hand with webpmux.
         if [[ "$ext" == webp && "$TARGET" == gif ]] && command -v ffmpeg >/dev/null 2>&1; then
             run ffmpeg -hide_banner -loglevel warning -y -i "$in" "$out"
             return
+        fi
+
+        # Camera raw before ImageMagick, not after. Homebrew's ImageMagick lists
+        # ARW/CR2/NEF as readable, but only via a `dng:decode` delegate that
+        # shells out to darktable-cli -- so without darktable installed it fails
+        # with "command not found" rather than saying it lacks raw support.
+        # macOS decodes raw in Image I/O, which sips exposes for free.
+        if in_set "$ext" "$RAW"; then
+            if [[ "$OSTYPE" == darwin* ]] && command -v sips >/dev/null 2>&1 \
+               && in_set "$TARGET" 'jpg jpeg png tiff tif'; then
+                run sips -s format "${TARGET/jpg/jpeg}" "$in" --out "$out" >/dev/null
+                return
+            fi
+            if command -v dcraw_emu >/dev/null 2>&1; then
+                # libraw's dcraw_emu writes <in>.tiff next to the source; convert
+                # that to the requested format, then clean up the intermediate.
+                local tmp="${in}.tiff"
+                run dcraw_emu -T -w "$in" >/dev/null 2>&1
+                if [[ -f "$tmp" ]]; then
+                    local mm; mm=$(magick_cmd)
+                    if [[ -n "$mm" ]]; then run "$mm" "$tmp" "$out"; else run mv "$tmp" "$out"; fi
+                    run rm -f "$tmp"
+                    return
+                fi
+            fi
+            need dcraw_emu "sudo apt install libraw-bin" "brew install libraw"
+            return 1
         fi
 
         m=$(magick_cmd)
