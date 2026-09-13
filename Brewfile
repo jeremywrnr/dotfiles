@@ -1,11 +1,9 @@
-tap "cloudflare/cloudflare"
-tap "dart-lang/dart"
-tap "homebrew/services"
-tap "lizardbyte/homebrew"
-tap "mongodb/brew"
-tap "jeremywrnr/tap"
-tap "sass/sass"
-tap "teamookla/speedtest"
+# Homebrew 6 will not load a formula or cask from a third-party tap until that
+# tap has been trusted, and refuses outright rather than prompting -- which
+# aborts `brew bundle install` on the first one. `trusted: true` records that
+# decision here, in the file that already says which taps this machine wants,
+# so install.sh needs no separate `brew trust` step.
+tap "jeremywrnr/tap", trusted: true
 
 # shell
 brew "fzf"
@@ -18,7 +16,6 @@ brew "wget"
 brew "htop"
 brew "telnet"
 brew "iperf3"
-brew "speedtest"
 brew "jq"
 
 # git

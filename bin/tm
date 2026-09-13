@@ -120,6 +120,14 @@ dest_mount() {
     return 1
 }
 
+# Whether a backup is in flight right now. `tmutil currentphase` prints
+# BackupNotRunning when idle, a phase name when not, and nothing at all when it
+# fails -- an unreadable phase counts as running, since both callers would
+# rather leave a backup alone than act on a guess.
+backup_running() {
+    [ "$(tmutil currentphase 2>/dev/null)" != BackupNotRunning ]
+}
+
 # percent free on a mount point
 free_pct() {
     df -k "$1" 2>/dev/null | awk 'NR == 2 { print 100 - int($5) }'
@@ -334,7 +342,7 @@ cmd_log() {
 }
 
 cmd_run() {
-    if [ "$(tmutil currentphase 2>/dev/null)" != BackupNotRunning ]; then
+    if backup_running; then
         echo "$PROG: a backup is already running" >&2
         return 1
     fi
@@ -358,15 +366,22 @@ cmd_clean() {
     local mnt
     mnt=$(dest_mount) || { echo "$PROG: destination not mounted" >&2; return 1; }
 
-    local -a stale
+    local -a stale=()
     while IFS= read -r d; do [ -n "$d" ] && stale+=("$d"); done < <(
         find "$mnt" -maxdepth 1 -name '*.interrupted' 2>/dev/null | sort
     )
 
-    # An .inprogress directory is the attempt happening right now. It looks
-    # exactly like the leftovers and must not be deleted, so call it out.
-    local running
+    # An .inprogress directory is either the attempt happening right now, which
+    # must not be touched, or the corpse of one that was stopped, which is just
+    # another leftover. Only `tmutil currentphase` can tell the two apart --
+    # the directory looks identical either way.
+    local running abandoned
     running=$(find "$mnt" -maxdepth 1 -name '*.inprogress' 2>/dev/null | head -1)
+    if [ -n "$running" ] && ! backup_running; then
+        abandoned=$running
+        running=
+        stale+=("$abandoned")
+    fi
 
     if [ ${#stale[@]} -eq 0 ]; then
         echo "$PROG: no leftover partial backups on $mnt"
@@ -374,7 +389,7 @@ cmd_clean() {
         return 0
     fi
 
-    printf '\n%s%d interrupted backups on %s%s\n\n' "$B" "${#stale[@]}" "$mnt" "$X"
+    printf '\n%s%d partial backups on %s%s\n\n' "$B" "${#stale[@]}" "$mnt" "$X"
     printf '  %s\n' "${stale[@]##*/}"
     cat <<EOF
 
@@ -383,12 +398,17 @@ quietly consume the destination until the next backup cannot fit. Review the
 list, then remove them with:
 
 EOF
+    # `tmutil delete -t` resolves timestamps against registered backups, which
+    # these are not -- they are stray root-owned directories with no APFS
+    # snapshot behind them, so -t fails with ENOENT. -p takes the path directly
+    # and is the form that works here.
     local d
     for d in "${stale[@]}"; do
         printf '  sudo tmutil delete -p %q\n' "$d"
     done
     echo
     [ -n "$running" ] && printf '  %s(%s is the attempt running now -- do not delete it.)%s\n\n' "$D" "${running##*/}" "$X"
+    [ -n "$abandoned" ] && printf '  %s(%s was left by a stopped run, not a live one -- listed above.)%s\n\n' "$D" "${abandoned##*/}" "$X"
     return 0
 }
 
