@@ -45,12 +45,14 @@ link() {
 
 # Render a launchd plist into ~/Library/LaunchAgents and (re)start it. Agents
 # are addressed as gui/$UID so they run in the login session, not gui/0.
+# __HOME__ is stamped in too, for the WatchPaths and friends that take a literal
+# path and get no ~ expansion from launchd.
 # $1: plist in the repo. $2: what it does, for the log line.
 load_agent() {
   local agent plist
   agent=$(basename "$1" .plist)
   plist="$HOME/Library/LaunchAgents/$agent.plist"
-  sed "s|__DOTFILES__|$DOTFILES|g" "$1" >"$plist"
+  sed -e "s|__DOTFILES__|$DOTFILES|g" -e "s|__HOME__|$HOME|g" "$1" >"$plist"
   launchctl bootout "gui/$UID/$agent" 2>/dev/null || true
   launchctl bootstrap "gui/$UID" "$plist"
   echo "  loaded: $agent ($2)"
@@ -61,6 +63,13 @@ echo ""
 
 HAVE_BREW=""
 command -v brew &>/dev/null && HAVE_BREW=1
+
+# Two different questions that used to share one answer. HAVE_BREW is about the
+# brew binary, which the Brewfile, VLC and rbenv blocks genuinely need; IS_MACOS
+# is about launchd, ~/Library, `defaults` and osxkeychain, all of which a Mac has
+# whether or not brew is installed.
+IS_MACOS=""
+[ "$(uname -s)" = Darwin ] && IS_MACOS=1
 
 echo "Shell:"
 link zshrc        .zshrc
@@ -75,7 +84,7 @@ link gitignore    .gitignore_global
 # between machines. git has conditional includes for gitdir and branch but not
 # for OS, so the credential helper has to be seeded here.
 if [ ! -f "$HOME/.gitconfig.local" ]; then
-  if [ -n "$HAVE_BREW" ]; then GIT_CRED=osxkeychain; else GIT_CRED="cache --timeout=86400"; fi
+  if [ -n "$IS_MACOS" ]; then GIT_CRED=osxkeychain; else GIT_CRED="cache --timeout=86400"; fi
   printf '[credential]\n\thelper = %s\n' "$GIT_CRED" > "$HOME/.gitconfig.local"
   echo "  seeded: ~/.gitconfig.local (credential.helper = $GIT_CRED)"
 else
@@ -123,7 +132,7 @@ link alacritty/alacritty.toml .config/alacritty/alacritty.toml
 # is macOS-only too (it reads AppleInterfaceStyle via `defaults`), so seed
 # theme.toml once on Linux instead -- alacritty.toml imports it unconditionally
 # and errors out on a missing import.
-if [ -n "$HAVE_BREW" ]; then
+if [ -n "$IS_MACOS" ]; then
   load_agent "$DOTFILES/alacritty/com.jeremy.alacritty-theme.plist" \
     "light/dark follows macOS appearance"
 else
@@ -135,6 +144,21 @@ else
     cp "$DOTFILES/alacritty/dark.toml" "$THEME"
     echo "  seeded: theme.toml from dark.toml (no auto light/dark on Linux yet)"
   fi
+fi
+
+echo ""
+echo "Screenshots:"
+# Two captures in one: the file on disk stays the record, and the agent puts a
+# copy of it on the clipboard as it lands, which no combination of modifier keys
+# will do on its own. screenshot-defaults.sh pins the capture location the agent
+# watches, the format it reads back, and the preview thumbnail that would
+# otherwise delay both.
+if [ -n "$IS_MACOS" ]; then
+  "$DOTFILES/screenshot/screenshot-defaults.sh"
+  load_agent "$DOTFILES/screenshot/com.jeremy.screenshot-clip.plist" \
+    "new screenshots also land on the clipboard"
+else
+  echo "  skipped (macOS only)"
 fi
 
 echo ""
