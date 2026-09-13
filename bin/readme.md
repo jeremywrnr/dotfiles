@@ -10,6 +10,7 @@ adding a file here adds a command — no symlinking, no re-running `install.sh`.
 | `set-media-date` | write EXIF/QuickTime dates onto images and videos |
 | `net` | ping-loop until the connection comes back, reporting total downtime |
 | `tm` | Time Machine health: how old the last *complete* backup is, why the last one failed, whether there is room for the next |
+| `bak` | restic backups to the NAS: `bak` for health, `bak backup`, `bak mount` to browse every snapshot |
 | `mirror-github` | mirror a GitHub repo onto the self-hosted Gitea instance |
 | `git-remote-setter` | flip a repo's origin between https and ssh (`git remote-setter ssh`) |
 | `git-open` | open the repo's web remote in a browser (`git open`) |
