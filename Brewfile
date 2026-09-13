@@ -10,6 +10,9 @@ brew "fzf"
 brew "eza"
 brew "zoxide"
 brew "ripgrep"
+# What cw() in zsh/30-functions.zsh reaches for first to print a script with
+# syntax highlighting; without it that falls through to plain cat.
+brew "bat"
 brew "tree"
 brew "watch"
 brew "wget"
