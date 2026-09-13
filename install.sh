@@ -315,6 +315,24 @@ else
 fi
 
 echo ""
+echo "Python:"
+# Homebrew and most distros ship `python3` but no bare `python`, so that name
+# falls through to whatever else is on PATH. On this machine that was a
+# MacPorts 3.11 from 2024 that `port` itself can no longer manage -- a stale
+# interpreter winning a name the live one never claims. ~/.local/bin sits ahead
+# of /opt/local/bin (see zsh/00-path.zsh), so one symlink points `python` at
+# the same interpreter as `python3`, in scripts as well as shells. PEP 394
+# leaves the unversioned name to the distributor, so this is ours to set.
+if command -v python3 &>/dev/null; then
+  PY3="$(command -v python3)"
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$PY3" "$HOME/.local/bin/python"
+  echo "  ok: python -> $PY3 ($("$PY3" -V 2>&1 | cut -d' ' -f2))"
+else
+  echo '  WARNING: no python3 on PATH, leaving python alone'
+fi
+
+echo ""
 echo "uv:"
 # Astral's installer on every platform, including macOS -- see the Brewfile for
 # why brew's uv is unusable here. Same prebuilt binary in ~/.local/bin either way.
