@@ -1,21 +1,5 @@
 # Functions.
 
-# --- nas ------------------------------------------------------------------
-
-to-content() { rsync -avP "$@" nas:***Content/; }
-to-media()   { rsync -avP "$@" nas:***Media/; }
-
-ingest-nas-official() {
-    rsync -avhP "$@" nas:***Media/Music/Library/ && ssh nas 'chgrp -R music ***Media/Music/Library && chmod -R g+rwX ***Media/Music/Library' 2>/dev/null;
-}
-ingest-nas-personal() {
-    rsync -avhP "$@" nas:***Media/Music/Originals/ && ssh nas 'chgrp -R music ***Media/Music/Originals && chmod -R g+rwX ***Media/Music/Originals' 2>/dev/null;
-}
-
-# Drop an album in the NAS inbox; Lidarr imports it (Wanted -> Manual Import)
-# and Navidrome picks it up from there.
-upload-music() { rsync -avP "$@" nas:***Media/Downloads/; }
-
 # --- files ----------------------------------------------------------------
 
 # Delete the droppings: .DS_Store and Icon? from macOS, vim swap files.
