@@ -417,6 +417,33 @@ if [ -x "$HOME/.local/bin/cloudflare-speed-cli" ]; then
 fi
 
 echo ""
+echo "Restic:"
+
+# restic needs Full Disk Access to read ~/Library/Messages, and TCC attributes
+# that to the executable launchd starts -- so the backup agent invokes the
+# restic binary directly and the grant stays scoped to it. The check agent
+# only reads repo metadata, needs no access, and can be a shell wrapper.
+if [ -n "$HAVE_BREW" ] && command -v restic &>/dev/null; then
+  for AGENT in com.jeremy.restic-backup com.jeremy.restic-check; do
+    PLIST="$HOME/Library/LaunchAgents/$AGENT.plist"
+    sed -e "s|__DOTFILES__|$DOTFILES|g" -e "s|__USER__|$USER|g" \
+      "$DOTFILES/launchd/$AGENT.plist" >"$PLIST"
+    launchctl bootout "gui/$UID/$AGENT" 2>/dev/null || true
+    launchctl bootstrap "gui/$UID" "$PLIST"
+    echo "  loaded: $AGENT"
+  done
+
+  if security find-generic-password -a "$USER" -s *** -w &>/dev/null; then
+    echo "  ok: repo password in keychain"
+  else
+    echo "  WARNING: no '***' keychain entry -- backups will fail"
+    echo "    security add-generic-password -a $USER -s *** -w <password> -A"
+  fi
+else
+  echo "  skipped (needs macOS and restic)"
+fi
+
+echo ""
 echo "Time Machine:"
 
 # `tm check` is macOS-only (tmutil, launchd, osascript all are), and this script

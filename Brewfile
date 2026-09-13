@@ -65,6 +65,12 @@ brew "just"
 brew "libffi"
 brew "pango"
 
+# backup -- see bin/bak (restic to the NAS) and bin/tm (Time Machine).
+# imessage-exporter gets Messages out of its SQLite store: restic backs up the
+# export, since the live database is a moving target mid-snapshot.
+brew "restic"
+brew "imessage-exporter"
+
 # terminal
 brew "tmux"
 
