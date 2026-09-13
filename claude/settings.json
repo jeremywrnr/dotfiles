@@ -1,32 +1,34 @@
 {
   "includeCoAuthoredBy": false,
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline.sh"
-  },
-  "tui": "fullscreen",
-  "skipWorkflowUsageWarning": true,
-  "theme": "auto",
   "hooks": {
     "Notification": [
       {
         "matcher": "permission_prompt|idle_prompt|elicitation_dialog",
         "hooks": [
-          { "type": "command", "command": "~/.claude/tab-title.sh needs" }
+          {
+            "type": "command",
+            "command": "~/.claude/tab-title.sh needs"
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "~/.claude/tab-title.sh done" }
+          {
+            "type": "command",
+            "command": "~/.claude/tab-title.sh done"
+          }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "~/.claude/tab-title.sh clear" }
+          {
+            "type": "command",
+            "command": "~/.claude/tab-title.sh clear"
+          }
         ]
       }
     ],
@@ -41,6 +43,42 @@
           }
         ]
       }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh"
+  },
+  "tui": "fullscreen",
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
+  "autoMode": {
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: Public — peconicmonuments/peconicmonuments.github.io (github.com); any push here publishes it",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured",
+      "**Default / protected branches**: Default branch is master; no rulesets or protected branches listed via gh for peconicmonuments/peconicmonuments.github.io",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Host containment**: None configured — assume Claude Code runs on an ordinary developer machine or CI runner with open internet",
+      "**Source control**: The trusted repo (peconicmonuments/peconicmonuments.github.io) and its origin remote only — public, so only that repo's own work belongs there",
+      "**Trusted internal domains**: www.peconicmonumentworks.com (contacted 6× in this project's transcripts)",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: rubygems.org (contacted 1× in this project's transcripts, consistent with gem usage)",
+      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries prod or production as a whole word or name segment",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries prod or production as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development (static site/Jekyll-style repo, personal/hobby posture)",
+      "**Trusted repo**: /Users/jeremy/Code/peconicmonuments.github.io and its origin remote (github.com/peconicmonuments/peconicmonuments.github.io), public — only this repo's own work should be committed or pushed there; no secrets or sensitive data regardless of visibility",
+      "**Org-specific CLiIs**: None configured",
+      "routine under jeremy/ prefix: none identified beyond the trusted repo above"
     ]
   }
 }
