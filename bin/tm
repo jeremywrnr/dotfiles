@@ -1,0 +1,406 @@
+#!/usr/bin/env bash
+#
+# tm - Time Machine health, at the altitude that matters.
+#
+# `tmutil status` says whether a backup is running right now; the menu bar
+# says roughly the same. Neither answers the only question worth asking --
+# "is there a recent, complete backup I could actually restore from?" --
+# which is how a Mac quietly goes a month without one while looking fine.
+#
+# `tm` answers that. `tm check` asks it on a timer and complains out loud.
+
+set -uo pipefail
+
+PROG=${0##*/}
+PLIST=/Library/Preferences/com.apple.TimeMachine.plist
+
+# a backup older than this is a problem, not a hiccup
+MAX_AGE_DAYS=${TM_MAX_AGE_DAYS:-3}
+# free space floors, percent
+MIN_LOCAL_FREE=${TM_MIN_LOCAL_FREE:-10}
+MIN_DEST_FREE=${TM_MIN_DEST_FREE:-10}
+
+usage() {
+    cat <<EOF
+usage: $PROG [command]
+
+  status    full health report (default)
+  check     quiet check for launchd; notifies and exits 1 on problems
+  log       recent Time Machine errors, with the real failure reason
+  run       start a backup now and follow it
+  stop      cancel the running backup
+  clean     find leftover .interrupted backups eating destination space
+
+env: TM_MAX_AGE_DAYS=$MAX_AGE_DAYS TM_MIN_LOCAL_FREE=$MIN_LOCAL_FREE TM_MIN_DEST_FREE=$MIN_DEST_FREE
+
+The backup age and disk checks work anywhere. The schedule and last-failure
+checks read $PLIST,
+which macOS gates behind Full Disk Access -- a terminal usually has it, a
+launchd agent does not. To get those from the agent too, add /bin/bash under
+System Settings > Privacy & Security > Full Disk Access.
+EOF
+}
+
+# ---------------------------------------------------------------- output
+
+if [ -t 1 ]; then
+    R=$'\033[31m'; Y=$'\033[33m'; G=$'\033[32m'; D=$'\033[2m'; B=$'\033[1m'; X=$'\033[0m'
+else
+    R=; Y=; G=; D=; B=; X=
+fi
+
+PROBLEMS=()
+WARNINGS=()
+
+ok()   { printf '  %s✓%s %-22s %s\n' "$G" "$X" "$1" "$2"; }
+info() { printf '  %s·%s %-22s %s\n' "$D" "$X" "$1" "$2"; }
+warn() { printf '  %s!%s %-22s %s\n' "$Y" "$X" "$1" "$2"; WARNINGS+=("$1: $2"); }
+bad()  { printf '  %s✗%s %-22s %s\n' "$R" "$X" "$1" "$2"; PROBLEMS+=("$1: $2"); }
+
+# ---------------------------------------------------------------- plumbing
+
+# Dates in the TM prefs are plist <date>s, which plutil refuses to emit as
+# JSON, so go through xml1 and pull the ISO strings out directly.
+plist_dates() {
+    plutil -convert xml1 -o - "$PLIST" 2>/dev/null | awk -v key="$1" '
+        $0 ~ "<key>" key "</key>" { found = 1; next }
+        found && /<\/array>/      { exit }
+        found && /<date>/         { gsub(/.*<date>|<\/date>.*/, ""); print }
+    '
+}
+
+plist_value() { plutil -extract "$1" raw -o - "$PLIST" 2>/dev/null; }
+
+# The prefs plist is world-readable by mode but gated by TCC, so a launchd
+# agent reads it as empty unless /bin/bash has Full Disk Access. Empty reads
+# look exactly like "automatic backups are off, no backup ever taken", which
+# would make the agent cry wolf every four hours -- so probe it once and
+# degrade honestly instead.
+plist_readable() { plutil -convert xml1 -o /dev/null "$PLIST" 2>/dev/null; }
+
+# Completed backups are the directories on the destination with no suffix, plus
+# the one macOS renames to .previous; .interrupted and .inprogress are not
+# restorable. Reading them needs no special privilege, which is what makes this
+# work from launchd.
+dest_last_backup() {
+    local mnt d name
+    mnt=$(dest_mount) || return 1
+    for d in $(find "$mnt" -maxdepth 1 -type d -name '[0-9]*-[0-9]*' 2>/dev/null | sort -r); do
+        name=${d##*/}
+        case "$name" in
+            *.interrupted|*.inprogress) continue ;;
+            *.previous) name=${name%.previous} ;;
+        esac
+        date -j -f "%Y-%m-%d-%H%M%S" "$name" +%s 2>/dev/null && return 0
+    done
+    return 1
+}
+
+epoch_of() { date -ju -f "%Y-%m-%dT%H:%M:%SZ" "$1" +%s 2>/dev/null; }
+
+# seconds -> "35 days", "4 hours", "12 minutes"
+human_age() {
+    local s=$1
+    if   [ "$s" -ge 172800 ]; then echo "$((s / 86400)) days"
+    elif [ "$s" -ge 7200 ];  then echo "$((s / 3600)) hours"
+    elif [ "$s" -ge 120 ];   then echo "$((s / 60)) minutes"
+    else echo "$s seconds"
+    fi
+}
+
+local_time_of() { date -r "$(epoch_of "$1")" "+%a %d %b %H:%M" 2>/dev/null; }
+
+# The destination volume is whatever is mounted with a backup manifest at its
+# root -- more reliable than guessing at the "Backups of <host>" naming.
+dest_mount() {
+    local v
+    for v in /Volumes/*; do
+        [ -f "$v/backup_manifest.plist" ] && { echo "$v"; return 0; }
+    done
+    return 1
+}
+
+# percent free on a mount point
+free_pct() {
+    df -k "$1" 2>/dev/null | awk 'NR == 2 { print 100 - int($5) }'
+}
+
+free_human() {
+    df -h "$1" 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }'
+}
+
+# The unified log is readable without Full Disk Access, which makes it the only
+# source that tells the launchd agent anything useful. It cannot date a backup
+# older than the log's retention, but it always sees whether the last attempt
+# to finish one failed -- and a run of failures is the thing worth waking
+# someone up about.
+log_terminal_event() {
+    /usr/bin/log show \
+        --predicate 'subsystem == "com.apple.TimeMachine" AND category == "BackupDispatching"' \
+        --last "${1:-30d}" --info --style compact 2>/dev/null \
+        | grep -E 'Backup (failed|completed)' | tail -1
+}
+
+log_event_epoch() {
+    local ts
+    ts=$(awk '{ print $1, $2 }' <<<"$1")
+    date -j -f "%Y-%m-%d %H:%M:%S" "${ts%.*}" +%s 2>/dev/null
+}
+
+notify() {
+    osascript -e "display notification \"$1\" with title \"Time Machine\" sound name \"Basso\"" \
+        >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------- checks
+
+# Populates PROBLEMS/WARNINGS. $1 = "quiet" to suppress the per-line output.
+run_checks() {
+    local quiet=${1:-}
+    if [ "$quiet" = quiet ]; then
+        ok() { :; }; info() { :; }
+        warn() { WARNINGS+=("$1: $2"); }
+        bad()  { PROBLEMS+=("$1: $2"); }
+    fi
+
+    # --- destination configured and reachable
+    local dinfo name kind url host
+    dinfo=$(tmutil destinationinfo 2>/dev/null)
+    if [ -z "$dinfo" ] || ! grep -q '^Name' <<<"$dinfo"; then
+        bad "destination" "none configured"
+        return
+    fi
+    name=$(awk -F': ' '/^Name/ { print $2; exit }' <<<"$dinfo" | xargs)
+    kind=$(awk -F': ' '/^Kind/ { print $2; exit }' <<<"$dinfo" | xargs)
+    url=$(awk -F': ' '/^URL/  { print $2; exit }' <<<"$dinfo" | xargs)
+    info "destination" "$name (${kind:-unknown})${url:+ $url}"
+
+    if [ "$kind" = Network ] && [ -n "$url" ]; then
+        host=${url#*@}; host=${host%%/*}
+        if ping -c 1 -t 3 "$host" >/dev/null 2>&1; then
+            ok "host" "$host responding"
+        else
+            bad "host" "$host unreachable"
+        fi
+    fi
+
+    # --- automatic backups on, and on a sane cadence
+    local readable=
+    plist_readable && readable=1
+
+    if [ -n "$readable" ]; then
+        local auto interval
+        auto=$(plist_value AutoBackup)
+        interval=$(plist_value AutoBackupInterval)
+        if [ "$auto" = 1 ]; then
+            if [ -n "$interval" ] && [ "$interval" -gt 7200 ] 2>/dev/null; then
+                warn "schedule" "automatic, but only every $((interval / 3600))h"
+            else
+                ok "schedule" "automatic, every $(( ${interval:-3600} / 3600 ))h"
+            fi
+        else
+            bad "schedule" "automatic backups are OFF"
+        fi
+    else
+        info "schedule" "unknown (no Full Disk Access; see \`$PROG help\`)"
+    fi
+
+    # --- the question that matters: how old is the last COMPLETE backup.
+    # Prefer the destination itself, which needs no privilege and so gives the
+    # same answer from a terminal and from launchd.
+    local last_epoch
+    if ! last_epoch=$(dest_last_backup); then
+        [ -n "$readable" ] && last_epoch=$(epoch_of "$(plist_dates SnapshotDates | tail -1)")
+    fi
+
+    if [ -z "$last_epoch" ]; then
+        local event reason
+        event=$(log_terminal_event 30d)
+        if [ -z "$event" ]; then
+            warn "last backup" "cannot determine (no Full Disk Access, nothing in 30d of logs)"
+        elif grep -q 'Backup failed' <<<"$event"; then
+            reason=$(sed 's/.*Backup failed: //' <<<"$event")
+            bad "last backup" "last attempt failed -- $reason"
+        else
+            last_epoch=$(log_event_epoch "$event")
+        fi
+    fi
+
+    if [ -n "$last_epoch" ]; then
+        local age
+        age=$(( $(date +%s) - last_epoch ))
+        if [ "$age" -gt $((MAX_AGE_DAYS * 86400)) ]; then
+            bad "last backup" "$(human_age "$age") ago ($(date -r "$last_epoch" '+%a %d %b %H:%M'))"
+        else
+            ok "last backup" "$(human_age "$age") ago ($(date -r "$last_epoch" '+%a %d %b %H:%M'))"
+        fi
+    fi
+
+    # --- and what happened on the most recent attempt
+    if [ -n "$readable" ]; then
+        local attempt result
+        attempt=$(plist_dates AttemptDates | tail -1)
+        result=$(plist_value Destinations.0.RESULT)
+        [ -n "$attempt" ] && info "last attempt" "$(human_age $(( $(date +%s) - $(epoch_of "$attempt") ))) ago"
+        case "$result" in
+            0|"") ;;
+            11)   bad "last result" "copy stage failed (11) -- see \`$PROG log\`" ;;
+            *)    bad "last result" "failed (code $result) -- see \`$PROG log\`" ;;
+        esac
+    fi
+
+    # --- running right now?
+    local phase pct
+    phase=$(tmutil currentphase 2>/dev/null)
+    if [ -n "$phase" ] && [ "$phase" != BackupNotRunning ]; then
+        pct=$(tmutil status 2>/dev/null | awk -F'"' '/Percent/ { print $2 }')
+        if [ -n "$pct" ] && [ "${pct%%.*}" -ge 0 ] 2>/dev/null; then
+            info "running" "$phase ($(awk -v p="$pct" 'BEGIN { printf "%.0f", p * 100 }')%)"
+        else
+            info "running" "$phase"
+        fi
+    fi
+
+    # --- headroom. A full startup disk is not a cosmetic problem here: macOS
+    # purges local snapshots under space pressure, and it will happily purge
+    # the very snapshot backupd is copying out of, which fails the backup.
+    local lpct
+    lpct=$(free_pct /System/Volumes/Data)
+    if [ -n "$lpct" ] && [ "$lpct" -lt "$MIN_LOCAL_FREE" ]; then
+        bad "startup disk" "$lpct% free ($(free_human /System/Volumes/Data)) -- snapshot purges will break backups"
+    else
+        ok "startup disk" "$lpct% free ($(free_human /System/Volumes/Data))"
+    fi
+
+    local mnt dpct
+    if mnt=$(dest_mount); then
+        dpct=$(free_pct "$mnt")
+        if [ -n "$dpct" ] && [ "$dpct" -lt "$MIN_DEST_FREE" ]; then
+            bad "backup disk" "$dpct% free ($(free_human "$mnt"))"
+        else
+            ok "backup disk" "$dpct% free ($(free_human "$mnt"))"
+        fi
+
+        # leftover partial backups: each failed run strands one of these, and
+        # they are not thinned automatically, so they compound.
+        local stale
+        stale=$(find "$mnt" -maxdepth 1 -name '*.interrupted' 2>/dev/null | wc -l | xargs)
+        if [ "${stale:-0}" -gt 0 ]; then
+            warn "leftovers" "$stale interrupted backups on disk -- see \`$PROG clean\`"
+        fi
+    else
+        info "backup disk" "not mounted"
+    fi
+}
+
+# ---------------------------------------------------------------- commands
+
+cmd_status() {
+    printf '\n%sTime Machine%s\n\n' "$B" "$X"
+    run_checks
+    echo
+    if [ ${#PROBLEMS[@]} -gt 0 ]; then
+        printf '  %s%d problem(s).%s Backups are not in a state you can rely on.\n\n' "$R" "${#PROBLEMS[@]}" "$X"
+        return 1
+    elif [ ${#WARNINGS[@]} -gt 0 ]; then
+        printf '  %s%d warning(s),%s but backups are current.\n\n' "$Y" "${#WARNINGS[@]}" "$X"
+        return 0
+    fi
+    printf '  %sHealthy.%s\n\n' "$G" "$X"
+}
+
+# Silent when all is well -- this is what launchd runs, and a notification
+# every hour for a working backup is how you learn to ignore notifications.
+cmd_check() {
+    run_checks quiet
+    [ ${#PROBLEMS[@]} -eq 0 ] && return 0
+    notify "${PROBLEMS[0]}$([ ${#PROBLEMS[@]} -gt 1 ] && echo " (+$(( ${#PROBLEMS[@]} - 1 )) more)")"
+    printf '%s\n' "${PROBLEMS[@]}" >&2
+    return 1
+}
+
+# backupd's own "Backup failed" line names the stage; the ErrorRemapper lines
+# just above it name the file and the underlying errno, which is the part that
+# tells you whether it is the network, the disk, or the source.
+cmd_log() {
+    local window=${1:-7d}
+    printf '\n%sTime Machine errors, last %s%s\n\n' "$B" "$window" "$X"
+    /usr/bin/log show --predicate 'subsystem == "com.apple.TimeMachine"' \
+        --last "$window" --info --style compact 2>/dev/null \
+        | grep -iE 'Backup failed|Copy failed|Backing up from source|Target Volume|Error Domain|not available|Bonjour resolution|Starting space-based purging' \
+        | grep -v 'connection invalid' \
+        | tail -40
+    echo
+}
+
+cmd_run() {
+    if [ "$(tmutil currentphase 2>/dev/null)" != BackupNotRunning ]; then
+        echo "$PROG: a backup is already running" >&2
+        return 1
+    fi
+    tmutil startbackup --auto --block &
+    local pid=$!
+    while kill -0 $pid 2>/dev/null; do
+        printf '\r  %-60s' "$(tmutil currentphase 2>/dev/null)"
+        sleep 2
+    done
+    printf '\r%-62s\r' ''
+    wait $pid
+    cmd_status
+}
+
+cmd_stop() { tmutil stopbackup; }
+
+# Deliberately does not delete anything. These are backups, and `tmutil delete`
+# on the wrong argument is not recoverable -- so print the commands and let a
+# human read them first.
+cmd_clean() {
+    local mnt
+    mnt=$(dest_mount) || { echo "$PROG: destination not mounted" >&2; return 1; }
+
+    local -a stale
+    while IFS= read -r d; do [ -n "$d" ] && stale+=("$d"); done < <(
+        find "$mnt" -maxdepth 1 -name '*.interrupted' 2>/dev/null | sort
+    )
+
+    # An .inprogress directory is the attempt happening right now. It looks
+    # exactly like the leftovers and must not be deleted, so call it out.
+    local running
+    running=$(find "$mnt" -maxdepth 1 -name '*.inprogress' 2>/dev/null | head -1)
+
+    if [ ${#stale[@]} -eq 0 ]; then
+        echo "$PROG: no leftover partial backups on $mnt"
+        [ -n "$running" ] && echo "$PROG: ${running##*/} is the current attempt, leave it alone"
+        return 0
+    fi
+
+    printf '\n%s%d interrupted backups on %s%s\n\n' "$B" "${#stale[@]}" "$mnt" "$X"
+    printf '  %s\n' "${stale[@]##*/}"
+    cat <<EOF
+
+Each failed run strands one of these and they are never thinned away, so they
+quietly consume the destination until the next backup cannot fit. Review the
+list, then remove them with:
+
+EOF
+    local d
+    for d in "${stale[@]}"; do
+        printf '  sudo tmutil delete -p %q\n' "$d"
+    done
+    echo
+    [ -n "$running" ] && printf '  %s(%s is the attempt running now -- do not delete it.)%s\n\n' "$D" "${running##*/}" "$X"
+    return 0
+}
+
+# ---------------------------------------------------------------- dispatch
+
+case "${1:-status}" in
+    status|"")     cmd_status ;;
+    check)         cmd_check ;;
+    log)           cmd_log "${2:-7d}" ;;
+    run|start)     cmd_run ;;
+    stop)          cmd_stop ;;
+    clean)         cmd_clean ;;
+    -h|--help|help) usage ;;
+    *)             echo "$PROG: unknown command '$1'" >&2; usage >&2; exit 2 ;;
+esac

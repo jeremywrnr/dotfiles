@@ -40,15 +40,13 @@ die() { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
 warn() { printf '%s: %s\n' "$PROG" "$*" >&2; }
 
 # Tell the user how to get a missing backend, for the platform they are on.
+# Both hints are full commands, not package names: librsvg has no usable bottle
+# on macOS Intel, so its macOS hint is a cargo invocation rather than a brew one.
 need() {
-    local tool=$1 apt=$2 brew=$3
+    local tool=$1 linux=$2 mac=$3
     command -v "$tool" >/dev/null 2>&1 && return 0
     warn "$tool is required for this conversion but is not installed."
-    if [[ "$OSTYPE" == darwin* ]]; then
-        warn "  brew install $brew"
-    else
-        warn "  sudo apt install $apt"
-    fi
+    if [[ "$OSTYPE" == darwin* ]]; then warn "  $mac"; else warn "  $linux"; fi
     return 1
 }
 
@@ -148,7 +146,7 @@ convert_one() {
     # ai -> svg
     if [[ "$ext" == ai ]]; then
         local ink; ink=$(inkscape_cmd)
-        [[ -n "$ink" ]] || { need inkscape inkscape inkscape; return 1; }
+        [[ -n "$ink" ]] || { need inkscape "sudo apt install inkscape" "brew install inkscape"; return 1; }
         run "$ink" "$in" --export-area-drawing --export-plain-svg="$out"
         return
     fi
@@ -168,13 +166,14 @@ convert_one() {
         if [[ -n "$m" ]]; then run "$m" -background none "$in" "$out"; return; fi
         local ink; ink=$(inkscape_cmd)
         if [[ -n "$ink" ]]; then run "$ink" "$in" --export-type="$TARGET" --export-filename="$out"; return; fi
-        need rsvg-convert librsvg2-bin librsvg
+        need rsvg-convert "sudo apt install librsvg2-bin" \
+            "cargo install --git https://gitlab.gnome.org/GNOME/librsvg.git --tag 2.63.0 rsvg_convert"
         return 1
     fi
 
     # audio/video -> audio, or video -> gif
     if in_set "$ext" "$AUDIO" || in_set "$ext" "$VIDEO"; then
-        need ffmpeg ffmpeg ffmpeg || return 1
+        need ffmpeg "sudo apt install ffmpeg" "brew install ffmpeg" || return 1
         case $TARGET in
             mp3)
                 # ffmpeg maps FLAC/Vorbis/QuickTime tags onto ID3 by itself, so
@@ -213,7 +212,7 @@ convert_one() {
                 run sips -s format "${TARGET/jpg/jpeg}" "$in" --out "$out" >/dev/null
                 return
             fi
-            need convert imagemagick imagemagick
+            need convert "sudo apt install imagemagick" "brew install imagemagick"
             return 1
         fi
 
@@ -237,7 +236,7 @@ convert_one() {
                 run heif-convert -q 92 "$in" "$out"
                 return
             else
-                need heif-convert libheif-examples libheif
+                need heif-convert "sudo apt install libheif-examples" "brew install libheif"
                 return 1
             fi
         fi
