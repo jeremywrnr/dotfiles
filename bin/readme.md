@@ -13,6 +13,7 @@ adding a file here adds a command — no symlinking, no re-running `install.sh`.
 | `mirror-github` | mirror a GitHub repo onto the self-hosted Gitea instance |
 | `git-remote-setter` | flip a repo's origin between https and ssh (`git remote-setter ssh`) |
 | `git-open` | open the repo's web remote in a browser (`git open`) |
+| `git-exec` | run a command in every git repo below the cwd, naming each one first (`cd ~/Code && git exec 'pwd && git up'`) |
 
 `tm` is macOS-only. `install.sh` loads a launchd agent that runs `tm check`
 every four hours and notifies only when something is wrong — see

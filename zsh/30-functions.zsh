@@ -19,12 +19,21 @@ upload-music() { rsync -avP "$@" nas:***Media/Downloads/; }
 # --- files ----------------------------------------------------------------
 
 # Delete the droppings: .DS_Store and Icon? from macOS, vim swap files.
-# Replaces rmds, rmicon and rmswp.
+# Replaces rmicon and rmswp.
 rmjunk() {
     local dir="${1:-.}"
     [[ -d "$dir" ]] || { print -u2 "rmjunk: no such directory: $dir"; return 1 }
     find "$dir" -type f \( -name '.DS_Store' -o -name 'Icon?' \
         -o -name '*.swp' -o -name '*.swo' \) -print -delete
+}
+
+# Just the .DS_Store files -- the ones that sneak into a commit or onto a
+# shared drive. rmjunk is the wider net; this leaves swap files alone, which
+# matters when vim is still open somewhere under $dir.
+rmds() {
+    local dir="${1:-.}"
+    [[ -d "$dir" ]] || { print -u2 "rmds: no such directory: $dir"; return 1 }
+    find "$dir" -type f -name '.DS_Store' -print -delete
 }
 
 # --- inspection -----------------------------------------------------------
@@ -61,15 +70,6 @@ ssl-status() {
         print -P "%F{cyan}$h%f"
         print "" | openssl s_client -showcerts -status -verify 0 \
             -connect "$h:443" 2>&1 | grep -E "Verify return|subject="
-    done
-}
-
-# Run a command in every git repo below the cwd:  git-each 'git status -s'
-git-each() {
-    (( $# )) || { print -u2 "usage: git-each '<command>'"; return 1 }
-    local d
-    for d in **/.git(N/); do
-        ( cd "${d:h}" && print -P "%F{cyan}${d:h}%f" && eval "$@" )
     done
 }
 

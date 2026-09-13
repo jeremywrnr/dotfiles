@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+#
+# git exec - run a command in every git repo below the current directory.
+#
+# Prints the repo's name before each run, so a wall of output stays readable:
+#
+#   cd ~/Code && git exec 'pwd && git up'
+#   git exec git fetch --all
+#
+# One argument is handed to bash, so pipes, && and globs work. Several
+# arguments are executed directly, which keeps quoting intact:
+#
+#   git exec 'git log --oneline | head -3'   # shell
+#   git exec grep -rn 'two words' .          # no shell, quotes survive
+#
+# Keeps going when a repo fails, then reports which ones did and exits 1.
+#
+# Named git-exec so `git exec` finds it on PATH; no gitconfig alias needed.
+# Replaces the git-each zsh function.
+
+set -uo pipefail
+
+depth=1
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -d|--depth) depth="$2"; shift 2 ;;
+        -r|--recursive) depth=99; shift ;;
+        -h|--help) sed -n '3,18p' "$0" | sed 's/^#//; s/^ //'; exit 0 ;;
+        --) shift; break ;;
+        *) break ;;
+    esac
+done
+
+if [[ $# -eq 0 ]]; then
+    echo 'usage: git exec [-d depth] <command ...>' >&2
+    exit 1
+fi
+
+# git exports these for external subcommands; left set, every child `git` call
+# would talk to the parent repo instead of the one we just stepped into.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
+if [[ -t 1 ]]; then
+    bold=$'\e[1;34m'; red=$'\e[1;31m'; reset=$'\e[0m'
+else
+    bold=''; red=''; reset=''
+fi
+
+repos=()
+while IFS= read -r dotgit; do
+    repos+=("$(dirname "$dotgit")")
+done < <(find . -mindepth 2 -maxdepth $((depth + 1)) -name .git -prune | sort)
+
+if [[ ${#repos[@]} -eq 0 ]]; then
+    echo "git exec: no git repos under $PWD" >&2
+    exit 1
+fi
+
+failed=()
+for repo in "${repos[@]}"; do
+    echo "${bold}${repo#./}${reset}"
+    if [[ $# -eq 1 ]]; then
+        (cd "$repo" && bash -c "$1")
+    else
+        (cd "$repo" && "$@")
+    fi || failed+=("${repo#./}")
+    echo
+done
+
+if [[ ${#failed[@]} -gt 0 ]]; then
+    echo "${red}failed:${reset} ${failed[*]}" >&2
+    exit 1
+fi
