@@ -466,4 +466,19 @@ else
 fi
 
 echo ""
-echo "Done. Restart your shell or run: source ~/.zshrc"
+
+# A child process cannot change its parent's environment, so `source ~/.zshrc`
+# here would apply to the subshell that is about to exit and nothing else. And
+# this file cannot be sourced instead: it is bash, the interactive shell is
+# zsh, and `set -e` plus `exit` would take the session down with it on any
+# failure. Replacing the shell is the one thing that actually works.
+#
+# Guarded on a tty both ways so CI, `bash install.sh | tee`, and anything
+# non-interactive just finish and return, rather than exec'ing a login shell
+# with nowhere to read from. DOTFILES_NO_EXEC=1 opts out by hand.
+if [ -t 0 ] && [ -t 1 ] && [ -z "${DOTFILES_NO_EXEC:-}" ]; then
+  echo "Done. Reloading $(basename "${SHELL:-sh}")..."
+  exec "${SHELL:-/bin/zsh}" -l
+else
+  echo "Done. Restart your shell or run: source ~/.zshrc"
+fi

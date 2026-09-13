@@ -12,3 +12,24 @@ TEMP_*
 .srvr*
 
 **/.claude/settings.local.json
+
+# Credentials. These are here rather than in any one repo's .gitignore because
+# the failure they prevent -- committing a key to a public repo -- is not one
+# you get to notice per project, and this checkout's own repo is public. A
+# pattern here costs nothing; the .local suffix is the convention the dotfiles
+# already use for machine-specific files (.gitconfig.local, .zshrc.local) that
+# are meant to stay on the machine.
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.local
+.env
+.env.*
+!.env.example
+.netrc
+credentials.json
+service-account*.json
