@@ -33,8 +33,6 @@ brew-drop-intel-banner() {
 brewup() {
   {
     brew update &&
-    brew trust jeremywrnr/tap cloudflare/cloudflare dart-lang/dart \
-      lizardbyte/homebrew mongodb/brew sass/sass &&
     brew upgrade --yes &&
     brew cleanup --prune-prefix &&
     brew cleanup &&

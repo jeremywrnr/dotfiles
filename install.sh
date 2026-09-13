@@ -341,42 +341,61 @@ fi
 
 echo ""
 echo "speedtest:"
-# Linux only -- the Brewfile covers macOS via the teamookla tap, and the
-# tarball fetched below is a linux build.
-# Ookla's static binary rather than their apt repo: packagecloud publishes no
-# noble suite (dists/noble is a 404), so the repo route means pinning a 24.04
-# box to jammy and quietly rotting. Same shape as uv and zoxide above -- a
-# prebuilt binary in ~/.local/bin, which zshrc already puts on PATH.
-# Not apt's speedtest-cli, which is the unofficial 2021 python client and
-# undercounts past a few hundred Mbit.
-if [ "$(uname -s)" != "Linux" ]; then
-  echo "  skipped (Brewfile)"
-elif command -v speedtest &>/dev/null; then
-  echo "  ok: $(speedtest --version 2>/dev/null | head -1)"
+# cloudflare-speed-cli, not Ookla's. Most Ookla servers are hosted by ISPs
+# inside their own networks, and ISPs have both the motive and the track record
+# to give that traffic a clear lane -- so the number flatters the one path it
+# measures. Cloudflare's edge is an ordinary internet destination, and the CLI
+# reports latency under load, jitter and packet loss, which is what decides
+# whether a link feels fast, rather than peak Mbit alone.
+#
+# The prebuilt release binary on both platforms, not the homebrew formula:
+# core bottles it for Sonoma only, so on Intel Tahoe brew builds it from source
+# and drags rust in first -- the same trap the Brewfile calls out for uv. Same
+# shape as uv and zoxide above, a binary in ~/.local/bin, which zshrc has on
+# PATH.
+if command -v cloudflare-speed-cli &>/dev/null; then
+  echo "  ok: $(cloudflare-speed-cli --version)"
 else
-  case "$(uname -m)" in
-    x86_64)  ST_ARCH=x86_64 ;;
-    aarch64) ST_ARCH=aarch64 ;;
-    *)       ST_ARCH="" ;;
+  CF_HOST="$(uname -s)-$(uname -m)"
+  case "$CF_HOST" in
+    Darwin-x86_64) CF_TARGET=x86_64-apple-darwin ;;
+    Darwin-arm64)  CF_TARGET=aarch64-apple-darwin ;;
+    Linux-x86_64)  CF_TARGET=x86_64-unknown-linux-musl ;;
+    Linux-aarch64) CF_TARGET=aarch64-unknown-linux-musl ;;
+    *)             CF_TARGET="" ;;
   esac
-  if [ -z "$ST_ARCH" ]; then
-    echo "  skipped (no Ookla build for $(uname -m))"
+  if [ -z "$CF_TARGET" ]; then
+    echo "  skipped (no build for $CF_HOST)"
   else
-    ST_VER=1.2.0
-    ST_TMP="$(mktemp -d)"
-    if curl -fsSL -o "$ST_TMP/speedtest.tgz" \
-        "https://install.speedtest.net/app/cli/ookla-speedtest-$ST_VER-linux-$ST_ARCH.tgz"; then
+    # /latest/download rather than a pinned tag, for the reason rbenv gives
+    # above: a hardcoded version goes stale and nothing here would notice.
+    CF_DIR="cloudflare-speed-cli-$CF_TARGET"
+    CF_TMP="$(mktemp -d)"
+    if curl -fsSL -o "$CF_TMP/cf.tar.xz" \
+        "https://github.com/kavehtehrani/cloudflare-speed-cli/releases/latest/download/$CF_DIR.tar.xz"; then
       mkdir -p "$HOME/.local/bin"
-      # The tarball also carries speedtest.5 and speedtest.md; only the binary
-      # is wanted.
-      tar -xzf "$ST_TMP/speedtest.tgz" -C "$HOME/.local/bin" speedtest
-      chmod +x "$HOME/.local/bin/speedtest"
-      echo "  installed to ~/.local/bin (run once to accept the license)"
+      # The tarball nests the binary in a per-target directory next to a README
+      # and LICENSE; only the binary is wanted.
+      tar -xf "$CF_TMP/cf.tar.xz" -C "$HOME/.local/bin" --strip-components=1 \
+        "$CF_DIR/cloudflare-speed-cli"
+      chmod +x "$HOME/.local/bin/cloudflare-speed-cli"
+      echo "  installed to ~/.local/bin"
     else
-      echo "  WARNING: speedtest download failed"
+      echo "  WARNING: cloudflare-speed-cli download failed"
     fi
-    rm -rf "$ST_TMP"
+    rm -rf "$CF_TMP"
   fi
+fi
+
+# `speedtest` is the name the fingers know, and on any machine that ran the
+# previous version of this script it is also where Ookla's binary landed --
+# aiming the name at the new tool migrates it and retires the old one in a
+# single step. A symlink rather than a zsh alias so scripts, bash and
+# non-interactive shells get it too, and because ~/.local/bin sits ahead of
+# /usr/local/bin in zsh/00-path.zsh it also shadows a leftover brew install.
+if [ -x "$HOME/.local/bin/cloudflare-speed-cli" ]; then
+  ln -sf cloudflare-speed-cli "$HOME/.local/bin/speedtest"
+  echo "  ok: speedtest -> cloudflare-speed-cli"
 fi
 
 echo ""
