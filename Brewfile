@@ -21,12 +21,18 @@ brew "telnet"
 brew "iperf3"
 brew "jq"
 # macOS ships openrsync, which reports itself as "rsync version 2.6.9
-# compatible" and speaks protocol 29. It is correct but slow on big transfers:
-# folding ~/Downloads/airplug-band onto the NAS moved 61 GB at ~22 MB/s over a
-# gigabit link that measured 100 MB/s with plain ssh, because it re-scans the
-# destination every pass and has no useful pipelining. It also lacks
-# --info=progress2, so a long run prints nothing until a file completes.
-# Homebrew's rsync 3.x fixes all three and takes PATH precedence.
+# compatible" and speaks protocol 29. Two things it does worse than rsync 3.x:
+# it re-scans the whole destination on every resumed pass, and it has no
+# --info=progress2, so a long transfer prints nothing until a file completes
+# and there is no way to see a stall. Homebrew's rsync 3.x fixes both and takes
+# PATH precedence.
+#
+# It is NOT established that openrsync is the throughput limit here. Folding
+# ~/Downloads/airplug-band onto the NAS held ~22 MB/s on a link that measured
+# 100 MB/s with plain ssh, but the laptop was at load 18 (a browser alone was
+# eating 3 cores) and ssh is single-threaded per connection, so CPU contention
+# explains that gap at least as well. Measure on an idle machine before
+# blaming the tool.
 brew "rsync"
 
 # git
