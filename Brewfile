@@ -20,6 +20,14 @@ brew "htop"
 brew "telnet"
 brew "iperf3"
 brew "jq"
+# macOS ships openrsync, which reports itself as "rsync version 2.6.9
+# compatible" and speaks protocol 29. It is correct but slow on big transfers:
+# folding ~/Downloads/airplug-band onto the NAS moved 61 GB at ~22 MB/s over a
+# gigabit link that measured 100 MB/s with plain ssh, because it re-scans the
+# destination every pass and has no useful pipelining. It also lacks
+# --info=progress2, so a long run prints nothing until a file completes.
+# Homebrew's rsync 3.x fixes all three and takes PATH precedence.
+brew "rsync"
 
 # git
 brew "git"
