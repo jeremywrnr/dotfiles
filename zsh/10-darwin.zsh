@@ -1,7 +1,11 @@
 # macOS only.
 [[ "$OSTYPE" == darwin* ]] || return 0
 
-alias ls="eza --icons=always"
+# eza comes from the Brewfile, so it is absent until brew bundle has run --
+# and an unguarded alias there breaks `ls` itself, which is a rough thing to
+# hit on a new machine. Same $+commands guard the rest of the config uses;
+# without eza this falls through to /bin/ls, and `ll` with it.
+(( $+commands[eza] )) && alias ls="eza --icons=always"
 alias rwifi="nwifi && sleep 4 && ywifi"
 alias nwifi="networksetup -setairportpower en0 off"
 alias ywifi="networksetup -setairportpower en0 on"

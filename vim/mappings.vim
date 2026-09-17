@@ -21,7 +21,6 @@ map <Space>f zR
 map <Space>c zM
 
 " function keys
-noremap <F3> :w !detex \| wc -w<cr>
 noremap <F4> :set number!<cr>
 noremap <F5> :setlocal spell! spelllang=en_us<cr>
 

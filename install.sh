@@ -52,6 +52,10 @@ load_agent() {
   local agent plist
   agent=$(basename "$1" .plist)
   plist="$HOME/Library/LaunchAgents/$agent.plist"
+  # A Mac only grows ~/Library/LaunchAgents once something installs an agent, so
+  # on a fresh account the sed redirect below has nowhere to write -- and under
+  # `set -e` that takes the rest of the install with it.
+  mkdir -p "$(dirname "$plist")"
   sed -e "s|__DOTFILES__|$DOTFILES|g" -e "s|__HOME__|$HOME|g" "$1" >"$plist"
   launchctl bootout "gui/$UID/$agent" 2>/dev/null || true
   launchctl bootstrap "gui/$UID" "$plist"
@@ -201,9 +205,98 @@ fi
 # own copies -- or find nothing to configure.
 
 echo ""
+echo "Xcode Command Line Tools:"
+# git, clang, make and the macOS SDK all live here, and a new Mac has none of
+# them -- the /usr/bin/git it ships is a stub whose only trick is to raise the
+# install dialog. Homebrew's installer would pull the tools in on its own, but
+# doing it first means git exists before anything wants it, and one dialog to
+# agree to rather than two prompts interleaved.
+#
+# `xcode-select --install` hands the work to a GUI installer and returns
+# immediately, so this has to wait for it rather than run on into a brew
+# install that has no compiler yet.
+if [ -z "$IS_MACOS" ]; then
+  echo "  skipped (macOS only)"
+else
+  if ! xcode-select -p &>/dev/null; then
+    echo "  requesting install (agree to the dialog macOS just opened)..."
+    xcode-select --install 2>/dev/null || true
+    # Cap the wait rather than spin forever: someone who dismissed the dialog, or
+    # a download that died, should get the script back instead of a hung terminal.
+    CLT_WAITED=0
+    while ! xcode-select -p &>/dev/null && [ "$CLT_WAITED" -lt 1800 ]; do
+      sleep 10
+      CLT_WAITED=$((CLT_WAITED + 10))
+    done
+  fi
+  # One report for both paths -- already there, and just waited for.
+  if CLT_PATH=$(xcode-select -p 2>/dev/null); then
+    echo "  ok: $CLT_PATH"
+  else
+    echo "  WARNING: command line tools still missing after 30m"
+    echo "  finish the install, or run: xcode-select --install"
+  fi
+fi
+
+echo ""
+echo "Homebrew:"
+# Everything the macOS half of this script installs comes out of the Brewfile --
+# the nerd font alacritty.toml names, VLC, zed, rbenv, and the CLI tools the zsh
+# aliases assume are there. Every one of those blocks skips itself when brew is
+# missing, which on a new Mac is all of them, silently: the install "succeeds"
+# and leaves a machine with an alacritty that cannot find its font. So bootstrap
+# brew rather than skip past it. Its installer asks for sudo on its own, which
+# is why this script must not be run under sudo (see the top).
+if [ -n "$HAVE_BREW" ]; then
+  echo "  ok: $(brew --version | head -1)"
+elif [ -n "$IS_MACOS" ] && [ ! -t 0 ] && ! sudo -n true 2>/dev/null; then
+  # Homebrew's installer drops into non-interactive mode when stdin is not a
+  # tty, and its first act is a sudo check that then has nowhere to prompt --
+  # it fails with "Need sudo access on macOS", which reads like a permissions
+  # problem and is not one. Nothing here can supply a password, so say what to
+  # do rather than run an installer that is guaranteed to fail.
+  #
+  # A tty is not the real requirement though, sudo working is: with credentials
+  # already cached the non-interactive install goes through, which is what makes
+  # this reachable from a pipe or an agent shell at all. Hence `sudo -n true`
+  # rather than `[ -t 0 ]` alone, short-circuited so a normal run never calls it.
+  echo "  skipped: no terminal for homebrew's sudo prompt, and no cached sudo"
+  echo "  run ./install.sh in a terminal, or run 'sudo -v' there first and retry"
+elif [ -n "$IS_MACOS" ]; then
+  echo "  installing homebrew (asks for your password)..."
+  # Say non-interactive outright when stdin is not a tty. The installer would
+  # work it out on its own, but only after a "press RETURN to continue" that
+  # nothing is going to answer. Empty is what it checks for, so a tty run stays
+  # interactive.
+  if [ -t 0 ]; then BREW_NI=""; else BREW_NI=1; fi
+  if NONINTERACTIVE="$BREW_NI" /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+    # A just-installed brew is not on this shell's PATH yet, and the prefix
+    # differs by arch -- /opt/homebrew on Apple Silicon, /usr/local on Intel.
+    # shellenv rather than a bare PATH prepend, so the rest of the run gets
+    # HOMEBREW_PREFIX and MANPATH too.
+    for p in /opt/homebrew /usr/local; do
+      if [ -x "$p/bin/brew" ]; then eval "$("$p/bin/brew" shellenv)"; break; fi
+    done
+    command -v brew &>/dev/null && HAVE_BREW=1
+  fi
+  if [ -z "$HAVE_BREW" ]; then
+    echo "  WARNING: homebrew install failed; everything below that needs it will be skipped"
+  fi
+else
+  echo "  skipped (macOS only; linux blocks below use apt or upstream installers)"
+fi
+
+echo ""
 if [ -n "$HAVE_BREW" ] && [ -f "$DOTFILES/Brewfile" ]; then
   echo "Brew:"
-  brew bundle install --file="$DOTFILES/Brewfile" --quiet
+  # Not fatal. A cask whose app or font was already installed by hand stops at
+  # "It seems there is already an App at ...", and brew bundle then exits
+  # nonzero for the whole file -- which under `set -e` would take VLC, ruby,
+  # python, uv and everything below it with it, over one app that is already
+  # there. `brew install --cask --force <name>` adopts it if you want brew to
+  # own it from then on.
+  brew bundle install --file="$DOTFILES/Brewfile" --quiet ||
+    echo "  WARNING: some brew entries failed (see above); continuing"
   echo ""
 fi
 
@@ -307,7 +400,44 @@ export PATH="$HOME/.rbenv/bin:$HOME/.rbenv/shims:$PATH"
 if command -v rbenv &>/dev/null; then
   # Deliberately not pinned: ruby-build's list is authoritative about the
   # newest buildable stable release, and a hardcoded version goes stale.
-  if [ -z "$(rbenv global 2>/dev/null | grep -v '^system$')" ]; then
+  # ruby-build compiles ruby and its openssl from source, which takes minutes
+  # before it would discover a broken toolchain -- and the failure it prints is
+  # a wall of make output ending in a linker error, which says nothing about the
+  # cause. Link a two-line C file first: same failure, immediately, with the one
+  # thing worth knowing. Seen here as an SDK the linker is older than, where
+  # `xcrun --show-sdk-path` resolves to a leftover newer SDK whose .tbd files
+  # name an architecture this ld cannot parse.
+  cc_links() {
+    local t rc
+    t=$(mktemp -d)
+    printf 'int main(){return 0;}\n' >"$t/t.c"
+    cc -o "$t/t" "$t/t.c" >/dev/null 2>&1
+    rc=$?
+    rm -rf "$t"
+    return $rc
+  }
+  # A bare `system` is rbenv saying it has no ruby of its own, so it reads the
+  # same as no answer at all. Probed once: both branches below ask this.
+  # `|| true` because grep exits 1 when it filters everything out, and a bare
+  # assignment -- unlike the condition this replaced -- is not protected from
+  # `set -e` at the top of the file.
+  RB_GLOBAL=$(rbenv global 2>/dev/null | grep -v '^system$' || true)
+  if [ -z "$RB_GLOBAL" ] && ! cc_links; then
+    RB_SDK=$(xcrun --show-sdk-path 2>/dev/null || true)
+    echo "  WARNING: skipping ruby install, this toolchain cannot link a C program"
+    echo "  sdk in use: ${RB_SDK:-unknown}"
+    echo "  cc -o t t.c on an empty main() is enough to reproduce it"
+    # xcrun picks the highest-numbered SDK it finds, not the one MacOSX.sdk
+    # points at -- so a beta SDK left behind by an older toolchain outranks the
+    # current one, and ld cannot read the .tbd files it ships. Moving it aside
+    # is enough; name the exact command, since guessing it from the linker
+    # error is the hard part.
+    if [ -n "$RB_SDK" ] && [ -d "$RB_SDK" ] &&
+       [ "$(readlink "$(dirname "$RB_SDK")/MacOSX.sdk")" != "$(basename "$RB_SDK")" ]; then
+      echo "  a newer sdk than this linker understands is the usual cause:"
+      echo "    sudo mv '$RB_SDK' '$RB_SDK.disabled'"
+    fi
+  elif [ -z "$RB_GLOBAL" ]; then
     RB_LATEST=$(rbenv install -l 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | tail -1)
     if [ -n "$RB_LATEST" ]; then
       echo "  installing ruby $RB_LATEST (compiles from source, takes a few minutes)"
@@ -316,7 +446,7 @@ if command -v rbenv &>/dev/null; then
       echo "  WARNING: could not determine a ruby version to install"
     fi
   else
-    echo "  ok: ruby $(rbenv global)"
+    echo "  ok: ruby $RB_GLOBAL"
   fi
 else
   echo "  WARNING: rbenv not on PATH after install"
@@ -325,7 +455,13 @@ fi
 echo ""
 echo "Gems:"
 # Gems install into the active rbenv version's prefix, so this needs no sudo.
-if command -v gem &>/dev/null; then
+if [ "$(command -v gem 2>/dev/null)" = /usr/bin/gem ]; then
+  # The comment above holds only once rbenv has a ruby. Until then `gem` is
+  # macOS's system ruby 2.6, whose gem dir under /Library/Ruby is root-owned:
+  # every install there fails on permissions, and the way to make it not fail
+  # is the sudo this block deliberately avoids.
+  echo "  skipped (only macOS system ruby; nothing to install into yet)"
+elif command -v gem &>/dev/null; then
   for g in open-remote; do
     if gem list -i "^${g}$" &>/dev/null; then
       echo "  ok: $g"
@@ -336,6 +472,31 @@ if command -v gem &>/dev/null; then
   done
 else
   echo "  skipped (no ruby on PATH)"
+fi
+
+echo ""
+echo "Node:"
+# fnm came from the Brewfile alone, and the Brewfile only runs on macOS -- so a
+# Linux box got zsh/40-tools.zsh's `fnm env --use-on-cd` guard, found no fnm,
+# and silently had no node manager at all. Upstream's installer fills that in.
+# It installs fnm and nothing else -- unlike the Ruby block above, which also
+# builds a ruby -- so a node version still comes from `fnm install --lts`.
+#
+# --skip-shell is not optional. Without it the installer appends an fnm block to
+# ~/.zshrc with `tee -a`, which follows the symlink and writes those lines into
+# this repo's zshrc -- where 40-tools.zsh already runs the same eval.
+#
+# --install-dir because its default on Linux is ~/.local/share/fnm, which is on
+# no PATH; ~/.local/bin is the one 00-path.zsh exports. On macOS the script
+# shells out to `brew install fnm` unless --force-install, which never comes up
+# here: the Brewfile got there first and command -v skips the whole block. The
+# releases are .zip only, so a minimal box needs unzip for this to land.
+if command -v fnm &>/dev/null; then
+  echo "  ok: $(fnm --version)"
+else
+  curl -fsSL https://fnm.vercel.app/install |
+    bash -s -- --install-dir "$HOME/.local/bin" --skip-shell ||
+    echo "  WARNING: fnm install failed"
 fi
 
 echo ""
@@ -382,6 +543,30 @@ else
 fi
 
 echo ""
+echo "herdr:"
+# herdr.dev's installer, the same shape as uv and zoxide above: a prebuilt
+# binary in ~/.local/bin, which zshrc has on PATH, on macOS and Linux alike.
+# Nothing here installed it before, so a fresh machine got herdr.toml, the chpwd
+# hook in zsh/35-herdr.zsh and no herdr -- the alacritty story the Brewfile
+# tells. The config half above links config.toml whether or not this runs.
+#
+# Not brew's formula: brew is only installed by this script on macOS, so the apt
+# path would still need this, and the installer reads the same latest.json
+# manifest `herdr update` does -- so an install and a later self-update agree on
+# what "latest" is, where a brew copy and `herdr update` would fight over the
+# same binary. It checksums the download against that manifest before moving it
+# into place.
+#
+# HERDR_INSTALL_DIR is the installer's own override; passed explicitly so this
+# does not depend on its default staying ~/.local/bin.
+if command -v herdr &>/dev/null; then
+  echo "  ok: $(herdr --version)"
+else
+  curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="$HOME/.local/bin" sh ||
+    echo "  WARNING: herdr install failed"
+fi
+
+echo ""
 echo "speedtest:"
 # cloudflare-speed-cli, not Ookla's. Most Ookla servers are hosted by ISPs
 # inside their own networks, and ISPs have both the motive and the track record
@@ -390,43 +575,22 @@ echo "speedtest:"
 # reports latency under load, jitter and packet loss, which is what decides
 # whether a link feels fast, rather than peak Mbit alone.
 #
-# The prebuilt release binary on both platforms, not the homebrew formula:
-# core bottles it for Sonoma only, so on Intel Tahoe brew builds it from source
-# and drags rust in first -- the same trap the Brewfile calls out for uv. Same
-# shape as uv and zoxide above, a binary in ~/.local/bin, which zshrc has on
-# PATH.
+# Upstream's install.sh on both platforms, not the homebrew formula: core
+# bottles it for Sonoma only, so on Intel Tahoe brew builds it from source and
+# drags rust in first -- the same trap the Brewfile calls out for uv. Same shape
+# as uv, zoxide and herdr, a binary in ~/.local/bin, which zshrc has on PATH.
+#
+# It resolves the tag through the GitHub API rather than /latest/download, so it
+# can be rate-limited on a shared IP, and it verifies the .sha256 that ships
+# beside the tarball -- which the hand-rolled fetch this replaced never did.
+# That check is `sha256sum -c`, and sha256sum is not a tool macOS has always had
+# (it is /sbin/sha256sum here on 27); on an older release only shasum exists and
+# the installer stops there, so the warning below is the answer, or coreutils.
 if command -v cloudflare-speed-cli &>/dev/null; then
   echo "  ok: $(cloudflare-speed-cli --version)"
 else
-  CF_HOST="$(uname -s)-$(uname -m)"
-  case "$CF_HOST" in
-    Darwin-x86_64) CF_TARGET=x86_64-apple-darwin ;;
-    Darwin-arm64)  CF_TARGET=aarch64-apple-darwin ;;
-    Linux-x86_64)  CF_TARGET=x86_64-unknown-linux-musl ;;
-    Linux-aarch64) CF_TARGET=aarch64-unknown-linux-musl ;;
-    *)             CF_TARGET="" ;;
-  esac
-  if [ -z "$CF_TARGET" ]; then
-    echo "  skipped (no build for $CF_HOST)"
-  else
-    # /latest/download rather than a pinned tag, for the reason rbenv gives
-    # above: a hardcoded version goes stale and nothing here would notice.
-    CF_DIR="cloudflare-speed-cli-$CF_TARGET"
-    CF_TMP="$(mktemp -d)"
-    if curl -fsSL -o "$CF_TMP/cf.tar.xz" \
-        "https://github.com/kavehtehrani/cloudflare-speed-cli/releases/latest/download/$CF_DIR.tar.xz"; then
-      mkdir -p "$HOME/.local/bin"
-      # The tarball nests the binary in a per-target directory next to a README
-      # and LICENSE; only the binary is wanted.
-      tar -xf "$CF_TMP/cf.tar.xz" -C "$HOME/.local/bin" --strip-components=1 \
-        "$CF_DIR/cloudflare-speed-cli"
-      chmod +x "$HOME/.local/bin/cloudflare-speed-cli"
-      echo "  installed to ~/.local/bin"
-    else
-      echo "  WARNING: cloudflare-speed-cli download failed"
-    fi
-    rm -rf "$CF_TMP"
-  fi
+  curl -fsSL https://raw.githubusercontent.com/kavehtehrani/cloudflare-speed-cli/main/install.sh | sh ||
+    echo "  WARNING: cloudflare-speed-cli install failed"
 fi
 
 # `speedtest` is the name the fingers know, and on any machine that ran the

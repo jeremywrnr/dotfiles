@@ -64,7 +64,9 @@ brew "exiftool"
 brew "rdfind"
 brew "libheif"
 brew "yt-dlp"
-brew "unrar"
+# unar, not unrar: homebrew-core dropped the unrar formula (its source is not
+# open enough for the license terms brew requires). unar reads rar all the same.
+brew "unar"
 
 # personal
 brew "apple-to-last-fm"
@@ -73,6 +75,17 @@ brew "apple-to-last-fm"
 # duti sets macOS default-app associations (see the VLC block in install.sh).
 brew "duti"
 brew "cloudflared"
+# mole (github.com/tw93/Mole) -- cache/log cleanup, app uninstall that also
+# takes the leftovers, disk usage by directory, and a system monitor, in place
+# of CleanMyMac/AppCleaner/DaisyDisk. It answers to both `mo` and `mole`; the
+# README and its own help use `mo`.
+#
+# The core formula, not the curl | bash the README leads with: same upstream
+# tags, and it stays inside the one thing that already knows what this machine
+# has. It drops a zsh completion in brew's site-functions, which zshrc already
+# has on fpath, so that needs nothing here. macOS only, and core bottles it for
+# arm64 alone -- an Intel Mac builds it from source and pulls go in to do that.
+brew "mole"
 # web-ext is absent for the uv reason above, one step removed: it depends on
 # node, so every node bump rebuilt it. Use `npx web-ext`, or `npm i -g web-ext`
 # -- but fnm scopes globals per node version, so a global install needs redoing
@@ -91,8 +104,19 @@ brew "imessage-exporter"
 brew "tmux"
 
 # fonts + apps
+# This repo carries alacritty.toml, the theme-sync script and a LaunchAgent that
+# follows the macOS appearance -- all of which configure a terminal that nothing
+# here installed, so a new Mac ended up with the config and no app. The font
+# casks below are the same story: alacritty.toml names a nerd font by family, and
+# without them it starts, warns, and silently falls back to Menlo.
+#
+# alacritty is pinned off: brew disabled the cask on 2026-09-01 because the
+# upstream build stopped passing the macOS Gatekeeper check, so `brew bundle`
+# fails on this line rather than skipping it. The app itself still runs, so
+# install it by hand (or from a release dmg) and re-enable this when the cask
+# comes back.
+# cask "alacritty"
 cask "font-meslo-lg-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
-cask "basictex"
 cask "vlc"
 cask "zed"
