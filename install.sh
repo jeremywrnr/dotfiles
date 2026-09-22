@@ -248,37 +248,51 @@ link zed/settings.json .config/zed/settings.json
 
 echo ""
 echo "MIME associations:"
-link linux/mimeapps.list             .config/mimeapps.list
-link linux/desktop-entry-launcher.desktop .local/share/applications/desktop-entry-launcher.desktop
+# XDG associations and .desktop launchers. macOS resolves file types through
+# LaunchServices and reads none of this, so linking it there would only leave
+# dead files in ~/.config and ~/.local/share.
+if [ -z "$IS_MACOS" ]; then
+  link linux/mimeapps.list             .config/mimeapps.list
+  link linux/desktop-entry-launcher.desktop .local/share/applications/desktop-entry-launcher.desktop
 
-# AppImages live in ~/Applications behind an unversioned symlink, so upgrading
-# only means repointing the symlink — the .desktop entry keeps working.
-if [ -e "$HOME/Applications/Slippi-Launcher.AppImage" ]; then
-  link linux/slippi-launcher.desktop .local/share/applications/slippi-launcher.desktop
+  # AppImages live in ~/Applications behind an unversioned symlink, so upgrading
+  # only means repointing the symlink — the .desktop entry keeps working.
+  if [ -e "$HOME/Applications/Slippi-Launcher.AppImage" ]; then
+    link linux/slippi-launcher.desktop .local/share/applications/slippi-launcher.desktop
+  else
+    echo "  skip: linux/slippi-launcher.desktop (no ~/Applications/Slippi-Launcher.AppImage)"
+  fi
+
+  if command -v update-desktop-database &>/dev/null; then
+    update-desktop-database "$HOME/.local/share/applications/"
+    echo "  updated desktop database"
+  fi
 else
-  echo "  skip: linux/slippi-launcher.desktop (no ~/Applications/Slippi-Launcher.AppImage)"
-fi
-
-if command -v update-desktop-database &>/dev/null; then
-  update-desktop-database "$HOME/.local/share/applications/"
-  echo "  updated desktop database"
+  echo "  skipped (Linux only)"
 fi
 
 echo ""
 echo "GameCube adapter:"
-link linux/gamecube/wii-u-gc-adapter.service .config/systemd/user/wii-u-gc-adapter.service
-# Deliberately not enabled at boot: while it runs, Dolphin cannot claim the
-# adapter over libusb and reports "Adapter Not Detected". See linux/gamecube/readme.md.
-if command -v systemctl &>/dev/null; then
-  systemctl --user daemon-reload 2>/dev/null || true
-fi
-if [ -e /etc/udev/rules.d/51-gcadapter.rules ] &&
-   cmp -s "$DOTFILES/linux/gamecube/51-gcadapter.rules" /etc/udev/rules.d/51-gcadapter.rules; then
-  echo "  ok: /etc/udev/rules.d/51-gcadapter.rules"
+# A systemd user unit and a udev rule; macOS has neither, and without this
+# guard it got the unit symlinked into ~/.config/systemd and was told to
+# install a udev rule into an /etc/udev that does not exist.
+if [ -z "$IS_MACOS" ]; then
+  link linux/gamecube/wii-u-gc-adapter.service .config/systemd/user/wii-u-gc-adapter.service
+  # Deliberately not enabled at boot: while it runs, Dolphin cannot claim the
+  # adapter over libusb and reports "Adapter Not Detected". See linux/gamecube/readme.md.
+  if command -v systemctl &>/dev/null; then
+    systemctl --user daemon-reload 2>/dev/null || true
+  fi
+  if [ -e /etc/udev/rules.d/51-gcadapter.rules ] &&
+     cmp -s "$DOTFILES/linux/gamecube/51-gcadapter.rules" /etc/udev/rules.d/51-gcadapter.rules; then
+    echo "  ok: /etc/udev/rules.d/51-gcadapter.rules"
+  else
+    echo "  udev rule needs root, run:"
+    echo "    sudo install -m644 $DOTFILES/linux/gamecube/51-gcadapter.rules /etc/udev/rules.d/51-gcadapter.rules"
+    echo "    sudo udevadm control --reload-rules && sudo udevadm trigger"
+  fi
 else
-  echo "  udev rule needs root, run:"
-  echo "    sudo install -m644 $DOTFILES/linux/gamecube/51-gcadapter.rules /etc/udev/rules.d/51-gcadapter.rules"
-  echo "    sudo udevadm control --reload-rules && sudo udevadm trigger"
+  echo "  skipped (Linux only)"
 fi
 
 echo ""
@@ -563,10 +577,18 @@ fi
 
 echo ""
 echo "GNOME Settings:"
-if command -v gsettings &>/dev/null && [ -f "$DOTFILES/linux/gnome-settings.sh" ]; then
-  "$DOTFILES/linux/gnome-settings.sh"
-else
+# `command -v gsettings` alone is not enough of a check: gsettings ships with
+# glib, so any Mac with a brew formula that depends on glib has the binary and
+# none of the org.gnome.* schemas. gnome-settings.sh runs under `set -e`, so it
+# would exit 1 on the first "No such schema" and take this script down with it
+# -- hence both the platform guard and the `||`. A GNOME-less Linux box has the
+# same missing schemas, which is why the fallback is not macOS-only.
+if [ -n "$IS_MACOS" ]; then
+  echo "  skipped (Linux only)"
+elif ! command -v gsettings &>/dev/null || [ ! -f "$DOTFILES/linux/gnome-settings.sh" ]; then
   echo "  skipped (gsettings not found or linux/gnome-settings.sh missing)"
+else
+  "$DOTFILES/linux/gnome-settings.sh" || echo "  WARNING: gnome-settings.sh failed (no GNOME schemas?)"
 fi
 
 echo ""
