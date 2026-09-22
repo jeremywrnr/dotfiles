@@ -7,11 +7,11 @@ DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Not `sudo ./install.sh`. Under sudo every link lands in root's home, or lands
 # in yours owned by root so the next ordinary run cannot replace it; brew
 # refuses to run as root outright; and the launchd agent would be bootstrapped
-# into gui/0 instead of your session. The only step that needs privilege is the
-# apt-get in the VLC block, and it asks for its own.
+# into gui/0 instead of your session. The steps that need privilege are the apt
+# ones, and they ask for their own.
 if [ "$EUID" -eq 0 ] && [ -z "$DOTFILES_ALLOW_ROOT" ]; then
   echo "install.sh: run this as yourself, not with sudo." >&2
-  echo "  the one step that needs root (apt-get install vlc) will prompt for it" >&2
+  echo "  the steps that need root (the apt installs) will prompt for it" >&2
   echo "  set DOTFILES_ALLOW_ROOT=1 to override (root-only containers)" >&2
   exit 1
 fi
@@ -70,8 +70,10 @@ command -v brew &>/dev/null && HAVE_BREW=1
 # whether or not brew is installed.
 IS_MACOS=""
 [ "$(uname -s)" = Darwin ] && IS_MACOS=1
+HAVE_APT=""
+command -v apt-get &>/dev/null && HAVE_APT=1
 
-if command -v apt-get &>/dev/null; then
+if [ -n "$HAVE_APT" ]; then
   echo "APT keys:"
   KEYRING=/etc/apt/keyrings/yarn-archive-keyring.gpg
   if [ ! -f "$KEYRING" ]; then
@@ -220,26 +222,41 @@ echo "Fonts:"
 # silently falls back to a proportional face (Noto Sans), which Alacritty then
 # draws on a fixed cell grid — every narrow glyph gets padded and words come out
 # looking like "i n s t a l l".
-if [ -n "$HAVE_BREW" ]; then
+# The cask is macOS-only, so HAVE_BREW alone asked the wrong question twice: it
+# skipped the download under linuxbrew, leaving exactly the proportional
+# fallback this block exists to prevent, and on a brew-less Mac it fell through
+# to `tar --wildcards` and `fc-cache`, neither of which stock macOS has -- both
+# fatal under `set -e`.
+if [ -n "$HAVE_BREW" ] && [ -n "$IS_MACOS" ]; then
   echo "  skipped (font-jetbrains-mono-nerd-font cask in Brewfile)"
+elif ! command -v fc-cache &>/dev/null; then
+  echo "  skipped (no fc-cache to install fonts with)"
 elif fc-list :family 2>/dev/null | grep -qi "JetBrainsMono Nerd Font Mono"; then
   echo "  ok: JetBrainsMono Nerd Font Mono"
 else
   FONTDIR="$HOME/.local/share/fonts/JetBrainsMonoNerdFont"
   FONTTMP="$(mktemp -d)"
-  trap 'rm -rf "$FONTTMP"' EXIT
   echo "  downloading JetBrainsMono Nerd Font..."
-  # .tar.xz, not the .zip: same 32 faces, 7MB instead of 134MB
-  curl -fsSL -o "$FONTTMP/JetBrainsMono.tar.xz" \
-    https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz
-  mkdir -p "$FONTDIR"
-  # Only the Mono + default faces. The NL (no-ligature) and Propo (proportional)
-  # variants ship in the same archive; Propo would reintroduce the very bug this
-  # block exists to prevent.
-  tar -xJf "$FONTTMP/JetBrainsMono.tar.xz" -C "$FONTDIR" --wildcards \
-    'JetBrainsMonoNerdFont-*.ttf' 'JetBrainsMonoNerdFontMono-*.ttf'
-  fc-cache -f "$HOME/.local/share/fonts" >/dev/null
-  echo "  installed: $FONTDIR"
+  # .tar.xz, not the .zip: same 32 faces, 7MB instead of 134MB.
+  #
+  # Tolerated rather than bare: this section sits near the top, so under `set -e`
+  # a rate-limited or offline run would abandon every symlink below it. Cleanup
+  # is explicit for the same reason the cloudflare block does it that way -- an
+  # EXIT trap never fires, because this script ends by exec'ing a login shell.
+  if curl -fsSL -o "$FONTTMP/JetBrainsMono.tar.xz" \
+      https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz; then
+    mkdir -p "$FONTDIR"
+    # Only the Mono + default faces. The NL (no-ligature) and Propo
+    # (proportional) variants ship in the same archive; Propo would reintroduce
+    # the very bug this block exists to prevent.
+    tar -xJf "$FONTTMP/JetBrainsMono.tar.xz" -C "$FONTDIR" --wildcards \
+      'JetBrainsMonoNerdFont-*.ttf' 'JetBrainsMonoNerdFontMono-*.ttf'
+    fc-cache -f "$HOME/.local/share/fonts" >/dev/null
+    echo "  installed: $FONTDIR"
+  else
+    echo "  WARNING: JetBrainsMono Nerd Font download failed"
+  fi
+  rm -rf "$FONTTMP"
 fi
 
 echo ""
@@ -252,7 +269,7 @@ echo "MIME associations:"
 # LaunchServices and reads none of this, so linking it there would only leave
 # dead files in ~/.config and ~/.local/share.
 if [ -z "$IS_MACOS" ]; then
-  link linux/mimeapps.list             .config/mimeapps.list
+  link linux/mimeapps.list .config/mimeapps.list
   link linux/desktop-entry-launcher.desktop .local/share/applications/desktop-entry-launcher.desktop
 
   # AppImages live in ~/Applications behind an unversioned symlink, so upgrading
@@ -260,7 +277,7 @@ if [ -z "$IS_MACOS" ]; then
   if [ -e "$HOME/Applications/Slippi-Launcher.AppImage" ]; then
     link linux/slippi-launcher.desktop .local/share/applications/slippi-launcher.desktop
   else
-    echo "  skip: linux/slippi-launcher.desktop (no ~/Applications/Slippi-Launcher.AppImage)"
+    echo "  skipped slippi-launcher.desktop (no ~/Applications/Slippi-Launcher.AppImage)"
   fi
 
   if command -v update-desktop-database &>/dev/null; then
@@ -280,15 +297,16 @@ if [ -z "$IS_MACOS" ]; then
   link linux/gamecube/wii-u-gc-adapter.service .config/systemd/user/wii-u-gc-adapter.service
   # Deliberately not enabled at boot: while it runs, Dolphin cannot claim the
   # adapter over libusb and reports "Adapter Not Detected". See linux/gamecube/readme.md.
-  if command -v systemctl &>/dev/null; then
-    systemctl --user daemon-reload 2>/dev/null || true
-  fi
-  if [ -e /etc/udev/rules.d/51-gcadapter.rules ] &&
-     cmp -s "$DOTFILES/linux/gamecube/51-gcadapter.rules" /etc/udev/rules.d/51-gcadapter.rules; then
-    echo "  ok: /etc/udev/rules.d/51-gcadapter.rules"
+  # `2>/dev/null || true` already covers a box without systemd, so no guard.
+  systemctl --user daemon-reload 2>/dev/null || true
+  GC_RULE=/etc/udev/rules.d/51-gcadapter.rules
+  # cmp -s exits nonzero on a missing operand, so it answers "present and
+  # identical" on its own.
+  if cmp -s "$DOTFILES/linux/gamecube/51-gcadapter.rules" "$GC_RULE"; then
+    echo "  ok: $GC_RULE"
   else
     echo "  udev rule needs root, run:"
-    echo "    sudo install -m644 $DOTFILES/linux/gamecube/51-gcadapter.rules /etc/udev/rules.d/51-gcadapter.rules"
+    echo "    sudo install -m644 $DOTFILES/linux/gamecube/51-gcadapter.rules $GC_RULE"
     echo "    sudo udevadm control --reload-rules && sudo udevadm trigger"
   fi
 else
@@ -299,13 +317,14 @@ echo ""
 echo "GPU monitoring:"
 # intel_gpu_top reads i915 perf counters, which are privileged. Without
 # CAP_PERFMON it exits with "Failed to initialize PMU" unless run under sudo.
-if ! command -v intel_gpu_top &>/dev/null; then
+GPU_TOP="$(command -v intel_gpu_top 2>/dev/null || true)"
+if [ -z "$GPU_TOP" ]; then
   echo "  skipped (intel_gpu_top not installed)"
-elif getcap /usr/bin/intel_gpu_top 2>/dev/null | grep -q cap_perfmon; then
-  echo "  ok: cap_perfmon on intel_gpu_top"
+elif getcap "$GPU_TOP" 2>/dev/null | grep -q cap_perfmon; then
+  echo "  ok: cap_perfmon on $GPU_TOP"
 else
   echo "  perf access needs root, run:"
-  echo "    sudo setcap cap_perfmon+ep /usr/bin/intel_gpu_top"
+  echo "    sudo setcap cap_perfmon+ep $GPU_TOP"
 fi
 
 echo ""
@@ -386,9 +405,29 @@ if [ -n "$HAVE_BREW" ]; then
     fi
   fi
 else
-  if command -v vlc &>/dev/null; then
+  # `command -v vlc` is not the question -- /snap/bin is on PATH, so the snap
+  # answers it, and the comment above says that is the one build we do not
+  # want. Resolve the name before trusting it. A snap here is also why the
+  # association block below finds nothing: snapd names its entry
+  # vlc_vlc.desktop under /var/lib/snapd, and pointing video types at a
+  # sandboxed player that cannot open ~/ or an external drive would be worse
+  # than leaving them alone, so skipping really is the right outcome.
+  VLC_BIN="$(command -v vlc 2>/dev/null || true)"
+  VLC_SNAP=""
+  if [ -n "$VLC_BIN" ]; then
+    # Both spellings: /snap/bin/vlc is the wrapper snapd puts on PATH, and it
+    # resolves to /usr/bin/snap. A `case` that matches nothing exits 0, so
+    # neither of these can trip `set -e`.
+    VLC_REAL="$(readlink -f "$VLC_BIN" 2>/dev/null || true)"
+    case "$VLC_BIN"  in /snap/*)          VLC_SNAP=1 ;; esac
+    case "$VLC_REAL" in /snap/*|*/snap)   VLC_SNAP=1 ;; esac
+  fi
+  if [ -n "$VLC_SNAP" ]; then
+    echo "  WARNING: $VLC_BIN is the snap, which is sandboxed -- associations skipped"
+    echo "    sudo snap remove vlc && sudo apt-get install -y vlc"
+  elif [ -n "$VLC_BIN" ]; then
     echo "  ok: $(vlc --version 2>/dev/null | head -1)"
-  elif command -v apt-get &>/dev/null; then
+  elif [ -n "$HAVE_APT" ]; then
     echo "  installing vlc (apt may ask for your password)"
     if sudo apt-get install -y -qq vlc >/dev/null; then
       echo "  installed"
@@ -403,7 +442,16 @@ else
   # audio and playlists are left to whatever already owns them.
   VLC_DESKTOP=$(find /usr/share/applications "$HOME/.local/share/applications" \
     -maxdepth 1 -name vlc.desktop 2>/dev/null | head -1)
-  if [ -z "$VLC_DESKTOP" ] || ! command -v xdg-mime &>/dev/null; then
+  # xdg-mime does not write through a symlink: it writes a temp file and mv's it
+  # over the target. Where ~/.config/mimeapps.list is linked to the repo (see
+  # the MIME associations section), that replaces the link with a regular file,
+  # and the next run of this script moves it aside as a .bak and relinks --
+  # losing these associations every time. If the repo owns the file, the
+  # associations belong in it.
+  MIMEAPPS="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
+  if [ -L "$MIMEAPPS" ]; then
+    echo "  skipped associations ($MIMEAPPS is a symlink -- set them in the repo copy)"
+  elif [ -z "$VLC_DESKTOP" ] || ! command -v xdg-mime &>/dev/null; then
     echo "  skipped associations (no vlc.desktop or no xdg-mime)"
   else
     VLC_MIME=$(grep -m1 '^MimeType=' "$VLC_DESKTOP" | cut -d= -f2- | tr ';' '\n' \
@@ -577,18 +625,14 @@ fi
 
 echo ""
 echo "GNOME Settings:"
-# `command -v gsettings` alone is not enough of a check: gsettings ships with
-# glib, so any Mac with a brew formula that depends on glib has the binary and
-# none of the org.gnome.* schemas. gnome-settings.sh runs under `set -e`, so it
-# would exit 1 on the first "No such schema" and take this script down with it
-# -- hence both the platform guard and the `||`. A GNOME-less Linux box has the
-# same missing schemas, which is why the fallback is not macOS-only.
-if [ -n "$IS_MACOS" ]; then
-  echo "  skipped (Linux only)"
-elif ! command -v gsettings &>/dev/null || [ ! -f "$DOTFILES/linux/gnome-settings.sh" ]; then
-  echo "  skipped (gsettings not found or linux/gnome-settings.sh missing)"
+# `command -v gsettings` is not a GNOME check on its own -- gsettings ships with
+# glib, so any Mac with a glib-dependent formula has the binary and none of the
+# org.gnome.* schemas. Hence the platform test too; gnome-settings.sh handles a
+# schema that is missing anyway, and prints its own status line.
+if [ -z "$IS_MACOS" ] && command -v gsettings &>/dev/null; then
+  "$DOTFILES/linux/gnome-settings.sh"
 else
-  "$DOTFILES/linux/gnome-settings.sh" || echo "  WARNING: gnome-settings.sh failed (no GNOME schemas?)"
+  echo "  skipped (Linux + GNOME only)"
 fi
 
 echo ""
