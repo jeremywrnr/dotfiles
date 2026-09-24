@@ -137,6 +137,28 @@ link alacritty/alacritty.toml .config/alacritty/alacritty.toml
 # theme.toml once on Linux instead -- alacritty.toml imports it unconditionally
 # and errors out on a missing import.
 if [ -n "$IS_MACOS" ]; then
+  # The agent below only means anything under System Settings > Appearance >
+  # Auto. theme-sync.sh reads AppleInterfaceStyle, and a manually pinned Light or
+  # Dark never changes, so it would sync once and then track nothing -- which is
+  # exactly what happened here: a terminal sitting in dark at 4pm, following a
+  # system that had been told to stay dark. The script's own header assumed Auto
+  # and nothing asserted it.
+  #
+  # Auto is AppleInterfaceStyleSwitchesAutomatically. The current shade is the
+  # presence (Dark) or absence (Light) of AppleInterfaceStyle, which macOS owns
+  # once Auto is on -- so clearing it just means "light until the daemon says
+  # otherwise", and it will say otherwise at the next sunset. Only done when Auto
+  # is off, so a deliberate pin is overridden once, not on every run.
+  if [ "$(defaults read -g AppleInterfaceStyleSwitchesAutomatically 2>/dev/null)" = 1 ]; then
+    echo "  ok: appearance follows the sun"
+  else
+    defaults write -g AppleInterfaceStyleSwitchesAutomatically -bool true
+    defaults delete -g AppleInterfaceStyle 2>/dev/null || true
+    # SystemUIServer caches the appearance; without this the menu bar keeps the
+    # old one until something else restarts it.
+    killall SystemUIServer 2>/dev/null || true
+    echo "  set: appearance to Auto (was pinned)"
+  fi
   load_agent "$DOTFILES/alacritty/com.jeremy.alacritty-theme.plist" \
     "light/dark follows macOS appearance"
 else
@@ -309,39 +331,94 @@ echo "VLC:"
 # duti writes LaunchServices on macOS, xdg-mime writes mimeapps.list on Linux --
 # so the two branches share nothing but the intent.
 if [ -n "$HAVE_BREW" ]; then
-  # Extensions cover what LaunchServices already knows about; the UTIs catch
-  # the rest, including anything that declares conformance to them. duti exits
-  # nonzero for a type the system has never seen, which `set -e` would treat as
-  # fatal, so every call is tolerated.
-  VLC_EXT="mp4 m4v mkv avi mov qt wmv flv webm mpg mpeg m2ts mts ts ogv ogm 3gp divx vob asf rm rmvb f4v"
-  VLC_UTI="public.movie public.video public.avi public.mpeg public.mpeg-4 com.apple.quicktime-movie org.matroska.mkv"
+  # macOS 26 and 27 gate default-handler changes behind a LaunchServices consent
+  # dialog. It is not duti's: `duti -s` returns 0 in ~20ms while the prompt is
+  # still on screen, so the old code here could not even tell whether a type had
+  # been set -- it counted requests and called them results -- and a new Mac meant
+  # one dialog per type. duti has no flag for this; System Settings goes through
+  # the same API.
+  #
+  # So write the store rather than calling the API. LSHandlers in
+  # com.apple.launchservices.secure is where LaunchServices keeps these. A write
+  # on its own changes nothing -- the entry lands in the plist and the live
+  # database never sees it -- but lsd re-reads the domain when it restarts, and
+  # killing it is enough. No rebuild, no dialog, verified in both directions and
+  # for entries that did not exist yet.
+  #
+  # duti stays, for reading: it is the only honest check that LaunchServices took
+  # what we wrote, rather than that we wrote it.
+  #
+  # UTIs only. `duti -s <ext>` resolved the extension and wrote a UTI entry
+  # anyway, so the 23-extension list this replaces was 23 ways of writing these
+  # 20 -- mp4 is public.mpeg-4, mov and qt are com.apple.quicktime-movie, mpg and
+  # mpeg are public.mpeg, ogv and ogm are org.xiph.ogg-video, and so on.
+  VLC_UTI="public.movie public.video public.avi public.mpeg public.mpeg-4
+    public.mpeg-2-transport-stream public.avchd-mpeg-2-transport-stream
+    public.3gpp com.apple.quicktime-movie com.apple.m4v-video
+    com.microsoft.windows-media-wmv com.microsoft.advanced-systems-format
+    org.matroska.mkv org.webmproject.webm org.xiph.ogg-video org.videolan.divx
+    org.videolan.vob com.adobe.flash.video com.real.realmedia
+    com.real.realmedia-vbr"
+  VLC_ID=org.videolan.vlc
   if [ ! -d "/Applications/VLC.app" ]; then
     echo "  WARNING: /Applications/VLC.app missing (brew bundle should have installed the cask)"
   elif ! command -v duti &>/dev/null; then
     echo "  WARNING: duti not on PATH, leaving video associations alone"
   else
-    # macOS 26 raises a confirmation dialog for every association that really
-    # changes, and duti has no flag to suppress it -- the prompt belongs to
-    # LaunchServices, not duti. So only call duti for types not already
-    # pointing at VLC: the first run still asks, every run after is silent.
-    # `duti -x` prints three lines (name, path, bundle id) and `duti -d` one.
-    # Both probes print the bundle id on a line of its own -- `duti -x` as the
-    # third of three (name, path, id), `duti -d` as the only one -- so one
-    # exact-line match covers extensions and UTIs alike.
-    VLC_ID=org.videolan.vlc
-    VLC_SET=0
-    vlc_assoc() {  # $1: -x for an extension, -d for a UTI. $2: the type.
-      duti "$1" "$2" 2>/dev/null | grep -qx "$VLC_ID" && return
-      duti -s "$VLC_ID" "$2" all 2>/dev/null || true
-      VLC_SET=$((VLC_SET + 1))
-    }
-    for e in $VLC_EXT; do vlc_assoc -x "$e"; done
-    for u in $VLC_UTI; do vlc_assoc -d "$u"; done
-    VLC_N=$(echo $VLC_EXT $VLC_UTI | wc -w | tr -d ' ')
-    if [ "$VLC_SET" -eq 0 ]; then
+    # Half of these never need an entry: VLC declares mkv, vob, divx, wmv and the
+    # real types itself and wins them unopposed, so only what disagrees is written.
+    VLC_N=$(echo $VLC_UTI | wc -w | tr -d ' ')
+    VLC_TODO=""
+    for u in $VLC_UTI; do
+      [ "$(duti -d "$u" 2>/dev/null | tail -1)" = "$VLC_ID" ] || VLC_TODO="$VLC_TODO $u"
+    done
+    VLC_WANT=$(echo $VLC_TODO | wc -w | tr -d ' ')
+    if [ "$VLC_WANT" -eq 0 ]; then
       echo "  ok: already default for $VLC_N video types"
+    elif ! command -v python3 &>/dev/null; then
+      # Nothing to edit a plist with, so the API and its dialogs it is.
+      for u in $VLC_TODO; do duti -s "$VLC_ID" "$u" all 2>/dev/null || true; done
+      echo "  asked duti for $VLC_WANT of $VLC_N types (macOS prompts for each)"
     else
-      echo "  ok: set $VLC_SET of $VLC_N video types"
+      VLC_DOMAIN=com.apple.LaunchServices/com.apple.launchservices.secure
+      VLC_TMP="$(mktemp -d)"
+      defaults export "$VLC_DOMAIN" "$VLC_TMP/handlers.plist"
+      python3 - "$VLC_TMP/handlers.plist" "$VLC_ID" $VLC_TODO <<'PLIST'
+import plistlib, sys, time
+path, app, utis = sys.argv[1], sys.argv[2], sys.argv[3:]
+with open(path, 'rb') as fh:
+    d = plistlib.load(fh)
+handlers = d.setdefault('LSHandlers', [])
+# Seconds since 2001, the epoch every other entry in here is stamped in.
+now = int(time.time()) - 978307200
+for uti in utis:
+    entry = next((h for h in handlers if h.get('LSHandlerContentType') == uti), None)
+    if entry is None:
+        entry = {'LSHandlerContentType': uti}
+        handlers.append(entry)
+    entry['LSHandlerRoleAll'] = app
+    entry['LSHandlerModificationDate'] = now
+    entry['LSHandlerPreferredVersions'] = {'LSHandlerRoleAll': '-'}
+with open(path, 'wb') as fh:
+    plistlib.dump(d, fh)
+PLIST
+      # Through defaults, not straight at the file: cfprefsd holds this domain in
+      # memory and would write its own copy back over ours.
+      defaults import "$VLC_DOMAIN" "$VLC_TMP/handlers.plist"
+      rm -rf "$VLC_TMP"
+      # launchd brings lsd back by itself; the sleep is for the re-read.
+      killall lsd 2>/dev/null || true
+      sleep 2
+      VLC_SET=0
+      for u in $VLC_TODO; do
+        [ "$(duti -d "$u" 2>/dev/null | tail -1)" = "$VLC_ID" ] && VLC_SET=$((VLC_SET + 1))
+      done
+      if [ "$VLC_SET" -eq "$VLC_WANT" ]; then
+        echo "  ok: set $VLC_SET of $VLC_N video types, no dialogs"
+      else
+        echo "  WARNING: $((VLC_WANT - VLC_SET)) of $VLC_WANT types did not take"
+        echo "  if macOS has closed this off, duti -s <uti> all still works, with a prompt each"
+      fi
     fi
   fi
 else
@@ -604,6 +681,39 @@ if [ -x "$HOME/.local/bin/cloudflare-speed-cli" ]; then
   echo "  ok: speedtest -> cloudflare-speed-cli"
 fi
 
+
+echo ""
+echo "Vim plugins:"
+# The Vim section above installs vim-plug and links plugins.vim, then stops --
+# so a new machine opened vim on 20 `Plug` lines with an empty ~/.vim/plugged
+# behind them. This is the `vimup` alias in zsh/20-aliases.zsh (PlugInstall,
+# PlugUpdate, PlugUpgrade), run once here so the first vim on a fresh box is the
+# configured one. Keep the two in step. It lives down here rather than beside
+# the vim links because it clones 20 repos over the network: ~6s cold, ~3s when
+# everything is already present.
+#
+# --sync on the two that fetch, because vim-plug drives its clones as async jobs
+# and would otherwise hit `qa` before they finish. PlugUpgrade is plug.vim
+# updating itself, which pairs with the curl bootstrap above.
+#
+# Run through `vim -es`, and the exit status deliberately ignored: ex mode
+# misparses the line continuations in plug.vim (E10) and quits 1 even when every
+# clone succeeded, so ~/.vim/plugged is the thing worth believing.
+if ! command -v vim &>/dev/null; then
+  echo "  skipped (no vim on PATH)"
+elif [ ! -f "$HOME/.vim/autoload/plug.vim" ]; then
+  echo "  skipped (vim-plug missing; rerun the Vim section)"
+else
+  vim -es -u "$HOME/.vimrc" -i NONE \
+    +'PlugInstall --sync' +'PlugUpdate --sync' +PlugUpgrade +qa \
+    </dev/null >/dev/null 2>&1 || true
+  VIM_PLUGS=$(ls "$HOME/.vim/plugged" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$VIM_PLUGS" -gt 0 ]; then
+    echo "  ok: $VIM_PLUGS plugins in ~/.vim/plugged"
+  else
+    echo "  WARNING: nothing landed in ~/.vim/plugged, run vimup by hand"
+  fi
+fi
 
 echo ""
 

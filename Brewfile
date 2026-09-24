@@ -72,7 +72,9 @@ brew "unar"
 brew "apple-to-last-fm"
 
 # misc
-# duti sets macOS default-app associations (see the VLC block in install.sh).
+# duti reads the live LaunchServices database, which is how the VLC block in
+# install.sh checks which video types actually point at VLC -- it writes them
+# through the preference store instead, since `duti -s` now costs a dialog each.
 brew "duti"
 brew "cloudflared"
 # mole (github.com/tw93/Mole) -- cache/log cleanup, app uninstall that also

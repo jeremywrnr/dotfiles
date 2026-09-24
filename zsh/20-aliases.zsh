@@ -17,6 +17,7 @@ alias path='echo -e ${PATH//:/\\n}'
 alias tree="tree -C"
 alias trim="awk 'length(\$0) < 120'"
 alias vi="vim"
+# install.sh runs this same trio headless on a new machine; keep them in step.
 alias vimup="\vim +PlugInstall +PlugUpdate +PlugUpgrade +qa"
 alias timezsh="for i in {1..5}; do /usr/bin/time /bin/zsh -i -c exit; done 2>&1 | grep real"
 alias ytdl="yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'"
