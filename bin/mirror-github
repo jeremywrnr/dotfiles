@@ -5,13 +5,19 @@
 
 set -e
 
-GITEA_URL="https://git.jeremywrnr.com"
-GITEA_USER="jeremy"
-MIRROR_INTERVAL="10m"
+# Host and account come from the environment: this repo is public, and a
+# self-hosted endpoint plus the account name on it is a free target for anyone
+# reading. Set them in ~/.zshrc.local, which zsh/40-tools.zsh sources and
+# .gitignore keeps out of here:
+#   export GITEA_URL=https://git.example.com
+#   export GITEA_USER=someone
+GITEA_URL="${GITEA_URL:?set GITEA_URL, e.g. in ~/.zshrc.local}"
+GITEA_USER="${GITEA_USER:?set GITEA_USER, e.g. in ~/.zshrc.local}"
+MIRROR_INTERVAL="${MIRROR_INTERVAL:-10m}"
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <github-repo-url>"
-    echo "Example: $0 https://github.com/jeremywrnr/nas.git"
+    echo "Example: $0 https://github.com/user/repo.git"
     exit 1
 fi
 

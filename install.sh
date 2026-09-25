@@ -643,6 +643,57 @@ else
     echo "  WARNING: herdr install failed"
 fi
 
+# herdr's Claude Code hook, which is what reports agent state to the sidebar:
+# `herdr integration install claude` writes ~/.claude/hooks/herdr-agent-state.sh
+# and adds the SessionStart entry that runs it. Only when the script is missing,
+# because that command also rewrites settings.json -- a symlink into this repo.
+#
+# The entry it writes carries an absolute path and herdr matches on it verbatim:
+# rewriting the command to a $HOME form is not recognised, and a second,
+# duplicate entry gets appended instead (tried it -- the hook then runs twice).
+# So the path belongs to whichever machine installed it, and anywhere else it
+# points at nothing. Rather than fight herdr for ownership of its own line, drop
+# entries whose script is not on this machine and let it add one that is.
+if command -v herdr &>/dev/null && [ -L "$HOME/.claude/settings.json" ]; then
+  if [ ! -f "$HOME/.claude/hooks/herdr-agent-state.sh" ]; then
+    herdr integration install claude >/dev/null 2>&1 &&
+      echo "  installed: claude agent-state hook"
+  fi
+  if command -v python3 &>/dev/null; then
+    python3 - "$DOTFILES/claude/settings.json" <<'HOOKS'
+import json, os, re, sys
+
+path = sys.argv[1]
+with open(path) as fh:
+    settings = json.load(fh)
+hooks = settings.get("hooks", {})
+blocks = hooks.get("SessionStart", [])
+
+
+def script_present(block):
+    for hook in block.get("hooks", []):
+        found = re.search(r"""['"]?(/[^'" ]*herdr-agent-state\.sh)['"]?""",
+                          hook.get("command", ""))
+        if found and not os.path.exists(found.group(1)):
+            return False
+    return True
+
+
+kept = [b for b in blocks if script_present(b)]
+if len(kept) != len(blocks):
+    if kept:
+        hooks["SessionStart"] = kept
+    else:
+        hooks.pop("SessionStart")
+    with open(path, "w") as fh:
+        json.dump(settings, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+    print("  pruned %d SessionStart hook(s) pointing at a missing script"
+          % (len(blocks) - len(kept)))
+HOOKS
+  fi
+fi
+
 echo ""
 echo "speedtest:"
 # cloudflare-speed-cli, not Ookla's. Most Ookla servers are hosted by ISPs
