@@ -192,7 +192,11 @@ echo "Herdr:"
 # herdr writes logs, sockets, and session.json into this same directory, so only
 # config.toml is linked -- never the directory itself.
 link herdr.toml   .config/herdr/config.toml
-if command -v herdr &>/dev/null && herdr status server &>/dev/null; then
+# `herdr status server` always exits 0, even when nothing is running -- it
+# just prints "not running" to stdout -- so the exit code can't gate the
+# reload. --json exposes a real running:true/false to grep on instead.
+if command -v herdr &>/dev/null &&
+  herdr status server --json 2>/dev/null | grep -q '"running":true'; then
   herdr server reload-config >/dev/null && echo "  reloaded running server"
 fi
 
