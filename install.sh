@@ -173,6 +173,23 @@ else
 fi
 
 echo ""
+echo "App switcher:"
+# Undocumented Dock default: by default Cmd-Tab's overlay only renders on the
+# display holding the Dock, which is disorienting with multiple monitors.
+# This mirrors it onto every connected display instead.
+if [ -n "$IS_MACOS" ]; then
+  if [ "$(defaults read com.apple.dock appswitcher-all-displays 2>/dev/null)" = 1 ]; then
+    echo "  ok: Cmd-Tab shows on all displays"
+  else
+    defaults write com.apple.dock appswitcher-all-displays -bool true
+    killall Dock 2>/dev/null || true
+    echo "  set: Cmd-Tab now shows on all displays"
+  fi
+else
+  echo "  skipped (macOS only)"
+fi
+
+echo ""
 echo "Screenshots:"
 # Two captures in one: the file on disk stays the record, and the agent puts a
 # copy of it on the clipboard as it lands, which no combination of modifier keys
