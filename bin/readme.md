@@ -8,7 +8,6 @@ adding a file here adds a command — no symlinking, no re-running `install.sh`.
 | `conv` | convert files between formats: `conv png *.webp`, `conv mp3 *.flac`, `conv jpg *.ARW` |
 | `to-mp4` | video → mp4, stream-copying rather than re-encoding when the codecs already suit |
 | `set-media-date` | write EXIF/QuickTime dates onto images and videos |
-| `net` | ping-loop until the connection comes back, reporting total downtime |
 | `mirror-github` | mirror a GitHub repo onto the self-hosted Gitea instance |
 | `git-remote-setter` | flip a repo's origin between https and ssh (`git remote-setter ssh`) |
 | `git-open` | open the repo's web remote in a browser (`git open`) |

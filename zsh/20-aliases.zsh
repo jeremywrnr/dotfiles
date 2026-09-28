@@ -16,6 +16,9 @@ alias o="open ."
 alias path='echo -e ${PATH//:/\\n}'
 alias tree="tree -C"
 alias trim="awk 'length(\$0) < 120'"
+# `net` used to be a perl ping-loop; speedtest (cloudflare-speed-cli, see
+# install.sh) tells you more and the fingers already know the word.
+alias net="speedtest"
 alias vi="vim"
 # install.sh runs this same trio headless on a new machine; keep them in step.
 alias vimup="\vim +PlugInstall +PlugUpdate +PlugUpgrade +qa"
