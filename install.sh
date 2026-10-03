@@ -227,17 +227,16 @@ link claude/settings.json .claude/settings.json
 link claude/statusline.sh .claude/statusline.sh
 link claude/tab-title.sh  .claude/tab-title.sh
 
-# .gitattributes names the filter, but its commands live in .git/config, which
-# a clone does not carry. Configured here, before the herdr hook step below, so
-# that step sees this machine's absolute path rather than the committed ~ form
-# and does not append a duplicate. A plain checkout already wrote the ~ form
-# without smudging it, so smudge it in place once -- through cat, not mv, to
-# keep the file the ~/.claude symlink points at.
+# The herdrhook filter (see claude/herdr-hook-filter): .gitattributes names it,
+# but its commands live in .git/config, which a clone does not carry. Set up
+# before the herdr hook step below, and a fresh checkout's ~ form smudged in
+# place, so that step finds herdr's own absolute path and adds no duplicate.
 git -C "$DOTFILES" config filter.herdrhook.clean "claude/herdr-hook-filter clean"
 git -C "$DOTFILES" config filter.herdrhook.smudge "claude/herdr-hook-filter smudge"
-if grep -q 'bash ~/\.claude/hooks/herdr-agent-state\.sh' "$DOTFILES/claude/settings.json"; then
-  smudged=$("$DOTFILES/claude/herdr-hook-filter" smudge < "$DOTFILES/claude/settings.json")
-  printf '%s\n' "$smudged" > "$DOTFILES/claude/settings.json"
+CLAUDE_SETTINGS="$DOTFILES/claude/settings.json"
+smudged=$("$DOTFILES/claude/herdr-hook-filter" smudge < "$CLAUDE_SETTINGS")
+if [ "$smudged" != "$(cat "$CLAUDE_SETTINGS")" ]; then
+  printf '%s\n' "$smudged" > "$CLAUDE_SETTINGS"
   echo "  smudged: herdr hook path in claude/settings.json"
 fi
 
@@ -682,52 +681,11 @@ fi
 # `herdr integration install claude` writes ~/.claude/hooks/herdr-agent-state.sh
 # and adds the SessionStart entry that runs it. Only when the script is missing,
 # because that command also rewrites settings.json -- a symlink into this repo.
-#
-# The entry it writes carries an absolute path and herdr matches on it verbatim:
-# rewriting the command to a $HOME form is not recognised, and a second,
-# duplicate entry gets appended instead (tried it -- the hook then runs twice).
-# So the working copy keeps herdr's absolute path, and the herdrhook git filter
-# set up in the Claude Code section stores it as ~ in the repo. Entries whose
-# script is still not on this machine (a stale path from before the filter, or
-# a box without herdr's script yet) are dropped so herdr can add one that is.
-if command -v herdr &>/dev/null && [ -L "$HOME/.claude/settings.json" ]; then
-  if [ ! -f "$HOME/.claude/hooks/herdr-agent-state.sh" ]; then
-    herdr integration install claude >/dev/null 2>&1 &&
-      echo "  installed: claude agent-state hook"
-  fi
-  if command -v python3 &>/dev/null; then
-    python3 - "$DOTFILES/claude/settings.json" <<'HOOKS'
-import json, os, re, sys
-
-path = sys.argv[1]
-with open(path) as fh:
-    settings = json.load(fh)
-hooks = settings.get("hooks", {})
-blocks = hooks.get("SessionStart", [])
-
-
-def script_present(block):
-    for hook in block.get("hooks", []):
-        found = re.search(r"""['"]?(/[^'" ]*herdr-agent-state\.sh)['"]?""",
-                          hook.get("command", ""))
-        if found and not os.path.exists(found.group(1)):
-            return False
-    return True
-
-
-kept = [b for b in blocks if script_present(b)]
-if len(kept) != len(blocks):
-    if kept:
-        hooks["SessionStart"] = kept
-    else:
-        hooks.pop("SessionStart")
-    with open(path, "w") as fh:
-        json.dump(settings, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
-    print("  pruned %d SessionStart hook(s) pointing at a missing script"
-          % (len(blocks) - len(kept)))
-HOOKS
-  fi
+# The entry's absolute path is kept out of git by the herdrhook filter above.
+if command -v herdr &>/dev/null && [ -L "$HOME/.claude/settings.json" ] &&
+  [ ! -f "$HOME/.claude/hooks/herdr-agent-state.sh" ]; then
+  herdr integration install claude >/dev/null 2>&1 &&
+    echo "  installed: claude agent-state hook"
 fi
 
 echo ""
