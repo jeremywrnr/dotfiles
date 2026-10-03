@@ -63,15 +63,15 @@ sidebar_start_collapsed = false
 # sidebar_start_collapsed above.
 
 [ui.sidebar.agents]
-# Drop the default "machine" column — it only earns its width with `herdr
-# --remote` in play.
+# "machine" labels which host an agent runs on, now that optiplex and nas
+# are saved machines (`herdr machine add <ssh-host>`).
 #
 # $dir over "workspace": the workspace token is the space label, fixed at the
 # cwd the space was created in, so an agent started after a `cd` gets filed
 # under the wrong repo. $dir is pane metadata pushed by the chpwd hook in
 # zshrc and tracks the pane itself. Panes that never ran that hook render the
 # row without it.
-rows = [["state_icon", "$dir", "tab"], ["terminal_title_stripped"]]
+rows = [["state_icon", "machine", "$dir", "tab"],["terminal_title_stripped"]]
 
 [ui.toast]
 # Off by default. With several agents blocking on input at once, the whole
