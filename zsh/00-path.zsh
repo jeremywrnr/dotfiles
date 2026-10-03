@@ -29,6 +29,10 @@ export PATH="/usr/local/bin:$PATH"
 if [[ -z "$HOMEBREW_PREFIX" && -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
+# shellenv exports FPATH, and a child that inherits the parent's final fpath
+# orders it differently from a fresh shell -- which oh-my-zsh reads as stale and
+# rebuilds .zcompdump for (~160ms) on every switch between the two.
+typeset +x FPATH
 
 export PATH="$HOME/.local/bin:$PATH"
 

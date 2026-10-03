@@ -4,7 +4,13 @@ set -uo pipefail
 
 input=$(cat)
 
-cwd=$(jq -r '.workspace.current_dir // .cwd // "?"' <<<"$input")
+# One jq for every field; this runs on each render.
+IFS=$'\t' read -r cwd model cost pct < <(jq -r '[
+  .workspace.current_dir // .cwd // "?",
+  .model.display_name // .model.id // "?",
+  .cost.total_cost_usd // 0,
+  .context_window.used_percentage // 0
+] | @tsv' <<<"$input")
 display_cwd="${cwd/#$HOME/"~"}"
 
 reset=$'\033[0m'
@@ -25,33 +31,27 @@ else
   cwd_display="${bright_white}${base_name}${reset}"
 fi
 
-model=$(jq -r '.model.display_name // .model.id // "?"' <<<"$input")
-cost=$(jq -r '.cost.total_cost_usd // 0' <<<"$input")
-pct=$(jq -r '.context_window.used_percentage // 0' <<<"$input")
-
+# Branch and dirty state from one status call; --no-optional-locks so a render
+# never takes index.lock out from under a git command running alongside it.
 branch=""
 branch_display=""
-if git -C "$cwd" rev-parse --is-inside-work-tree &>/dev/null; then
-  branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
+if status=$(git -C "$cwd" --no-optional-locks status --porcelain=v2 --branch 2>/dev/null); then
+  branch=$(sed -n 's/^# branch\.head //p' <<<"$status")
+  [ "$branch" = "(detached)" ] && branch=""
   if [ -n "$branch" ]; then
-    green=$'\033[32m'
-    yellow=$'\033[33m'
-    red=$'\033[31m'
-
-    if git -C "$cwd" rev-parse -q --verify MERGE_HEAD &>/dev/null; then
-      color="$red"
-    elif [ -n "$(git -C "$cwd" status --porcelain 2>/dev/null)" ]; then
-      color="$yellow"
+    if [ -f "$(git -C "$cwd" rev-parse --absolute-git-dir)/MERGE_HEAD" ]; then
+      color=$'\033[31m'
+    elif grep -qv '^#' <<<"$status"; then
+      color=$'\033[33m'
     else
-      color="$green"
+      color=$'\033[32m'
     fi
-
     branch_display="${color}${branch}${reset}"
   fi
 fi
 
-cost_fmt=$(printf '$%.0f' "$cost")
-pct_fmt=$(printf '%.0f%%' "$pct")
+printf -v cost_fmt '$%.0f' "$cost"
+printf -v pct_fmt '%.0f%%' "$pct"
 
 left="$cwd_display"
 left_len=${#display_cwd}
@@ -79,7 +79,7 @@ width=$(( ${COLUMNS:-80} - margin ))
 pad=$((width - left_len - ${#right} - 1))
 
 if [ "$pad" -gt 0 ]; then
-  spacer=$(printf '%*s' "$pad" '')
+  printf -v spacer '%*s' "$pad" ''
   echo "${left}${spacer} ${right}"
 else
   echo "${left} | ${right}"

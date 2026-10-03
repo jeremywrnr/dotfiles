@@ -1,4 +1,4 @@
-# herdr — terminal workspace manager. Bindings mirror tmux.conf where herdr has
+# herdr — terminal workspace manager. Bindings mirror the old tmux.conf where herdr has
 # an equivalent, so muscle memory carries over between the two.
 onboarding = false
 
@@ -40,7 +40,7 @@ last_pane = "prefix+semicolon"   # tmux: prefix ; (unset in herdr by default)
 copy_mode = "prefix+["           # tmux: prefix [
 
 [ui]
-# tmux.conf sets automatic-rename on; don't prompt for a name on every new tab.
+# tmux had automatic-rename on; don't prompt for a name on every new tab.
 prompt_new_tab_name = false
 
 # tmux: set -g status-right '%H:%M:%S %m/%d'

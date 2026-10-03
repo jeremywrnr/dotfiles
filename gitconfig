@@ -1,5 +1,4 @@
 [user]
-    user  = jeremywrnr
     name  = Jeremy Warner
     email = jeremywrnr@gmail.com
 [include]
@@ -28,8 +27,6 @@
     lg= log --oneline --decorate --color --graph
     lgg=log --pretty=format:'%C(yellow)%h %C(cyan)%ad%Cgreen%d %Creset%s' --date=short
     la= log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
-    lol = log --graph --decorate --pretty=oneline --abbrev-commit
-    lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
     br= branch
     co= checkout
     ps= push
@@ -43,11 +40,8 @@
     # was util/git-historian: interactive rebase back to the root commit
     historian = !git rebase -i $(git rev-list --max-parents=0 HEAD)
     su= !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
-    set-upstream = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
     cob= !git branch --merged main | grep -vE '^[*]|main|master' | xargs -n 1 git branch -d
-    clear-old-branches= !git cob
     sb= !git reset --soft $(git merge-base main HEAD) && git commit -m squash-onto-main
-    squash-branch= !git sb
 [core]
     excludesfile = ~/.gitignore_global
 [diff]

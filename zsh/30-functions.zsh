@@ -60,7 +60,7 @@ ssl-status() {
 # --- dotfiles -------------------------------------------------------------
 
 # Edit this config, commit it, push it, reload it. Pushes HEAD rather than a
-# hardcoded main, because this repo keeps a branch per machine.
+# hardcoded main, so it also works from a feature branch.
 zshrc() {
     (
         cd "$DOTFILES" || return 1
@@ -80,7 +80,7 @@ vimrc() {
     (
         cd "$DOTFILES" || return 1
         ${EDITOR:-vim} vim/mappings.vim
-        git add -A vimrc gvimrc vim
+        git add -A vimrc vim
         if git diff --cached --quiet; then
             print "no changes"
         else

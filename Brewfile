@@ -26,13 +26,6 @@ brew "jq"
 # --info=progress2, so a long transfer prints nothing until a file completes
 # and there is no way to see a stall. Homebrew's rsync 3.x fixes both and takes
 # PATH precedence.
-#
-# It is NOT established that openrsync is the throughput limit here. Folding
-# ~/Downloads/airplug-band onto the NAS held ~22 MB/s on a link that measured
-# 100 MB/s with plain ssh, but the laptop was at load 18 (a browser alone was
-# eating 3 cores) and ssh is single-threaded per connection, so CPU contention
-# explains that gap at least as well. Measure on an idle machine before
-# blaming the tool.
 brew "rsync"
 
 # git
@@ -101,9 +94,6 @@ brew "pango"
 # backed up -- the live database is a moving target mid-snapshot.
 brew "restic"
 brew "imessage-exporter"
-
-# terminal
-brew "tmux"
 
 # fonts + apps
 # This repo carries alacritty.toml, the theme-sync script and a LaunchAgent that

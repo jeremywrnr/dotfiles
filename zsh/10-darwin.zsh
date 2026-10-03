@@ -47,8 +47,6 @@ brewup() {
 export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git/*"'
 (( $+commands[fzf] )) && source <(fzf --zsh)
 
-export PATH="/usr/local/opt/ruby/bin:$PATH"
-
 # Force a clock resync against Apple's NTP servers, for when macOS drifts and
 # the uncheck/recheck dance in System Settings is the usual fix.
 alias timesync='sudo sntp -sS time.apple.com'

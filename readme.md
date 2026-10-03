@@ -8,7 +8,6 @@ existing files get backed up to `.bak`. machine-local config (api keys, etc) goe
 ## deps
 
     brew bundle install
-    git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 
 ## notes
 

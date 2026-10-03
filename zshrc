@@ -11,9 +11,7 @@ ENABLE_CORRECTION="true"       # enable command auto-correction.
 HISTSIZE=100000
 SAVEHIST=100000
 
-# Booker completion
 typeset -U fpath
-fpath=(~/.zsh/completion $fpath)
 
 # Brew's completions have to be on fpath BEFORE compinit, and compinit runs
 # inside the oh-my-zsh.sh sourced below -- so this cannot wait for the
@@ -29,7 +27,7 @@ fpath=(~/.zsh/completion $fpath)
   fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
 
 # ~/.oh-my-zsh/plugins/*
-plugins=(git history-substring-search)
+plugins=(history-substring-search)
 source $ZSH/oh-my-zsh.sh
 
 for _zmod in "$DOTFILES"/zsh/*.zsh(N); do source "$_zmod"; done

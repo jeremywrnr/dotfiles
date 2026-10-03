@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = ["click"]
+# ///
 """
 Set EXIF/metadata dates on images and videos using exiftool.
 Handles both image formats (JPEG, PNG) and video formats (MP4, MOV, AVI, etc.)

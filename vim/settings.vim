@@ -23,7 +23,6 @@ set backspace=indent,eol,start
 set notimeout ttimeout ttimeoutlen=200
 
 let mapleader = ','
-let g:rehash256 = 1
 let g:goyo_width = 80
 nmap <c-p> :FZF<cr>
 let g:EasyMotion_smartcase = 1

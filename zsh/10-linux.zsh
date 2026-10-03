@@ -15,7 +15,7 @@ mo() {
   case "$1" in
     ""|status) btop ;;
     # Not nvtop: Noble ships 3.0.2, which on i915 reports utilization only and
-    # says so in a modal on every launch. Needs cap_perfmon (see install.sh).
+    # says so in a modal on every launch. Needs cap_perfmon: sudo setcap cap_perfmon+ep "$(command -v intel_gpu_top)".
     gpu)       intel_gpu_top ;;
     *) echo "mo: only 'status' and 'gpu' ported from mole" >&2; return 1 ;;
   esac
