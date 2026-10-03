@@ -11,7 +11,10 @@ IFS=$'\t' read -r cwd model cost pct < <(jq -r '[
   .cost.total_cost_usd // 0,
   .context_window.used_percentage // 0
 ] | @tsv' <<<"$input")
-display_cwd="${cwd/#$HOME/"~"}"
+# Via a variable: bash 3.2 (macOS's /bin/bash) keeps quotes around a literal
+# "~" replacement, and an unquoted one would tilde-expand right back to $HOME.
+tilde='~'
+display_cwd="${cwd/#$HOME/$tilde}"
 
 reset=$'\033[0m'
 bright_white=$'\033[1;97m'
