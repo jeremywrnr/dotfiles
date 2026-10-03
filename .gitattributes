@@ -1,0 +1,2 @@
+# Keeps the per-machine herdr hook path out of git; see claude/herdr-hook-filter.
+claude/settings.json filter=herdrhook

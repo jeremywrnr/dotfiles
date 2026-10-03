@@ -227,6 +227,20 @@ link claude/settings.json .claude/settings.json
 link claude/statusline.sh .claude/statusline.sh
 link claude/tab-title.sh  .claude/tab-title.sh
 
+# .gitattributes names the filter, but its commands live in .git/config, which
+# a clone does not carry. Configured here, before the herdr hook step below, so
+# that step sees this machine's absolute path rather than the committed ~ form
+# and does not append a duplicate. A plain checkout already wrote the ~ form
+# without smudging it, so smudge it in place once -- through cat, not mv, to
+# keep the file the ~/.claude symlink points at.
+git -C "$DOTFILES" config filter.herdrhook.clean "claude/herdr-hook-filter clean"
+git -C "$DOTFILES" config filter.herdrhook.smudge "claude/herdr-hook-filter smudge"
+if grep -q 'bash ~/\.claude/hooks/herdr-agent-state\.sh' "$DOTFILES/claude/settings.json"; then
+  smudged=$("$DOTFILES/claude/herdr-hook-filter" smudge < "$DOTFILES/claude/settings.json")
+  printf '%s\n' "$smudged" > "$DOTFILES/claude/settings.json"
+  echo "  smudged: herdr hook path in claude/settings.json"
+fi
+
 echo ""
 echo "Misc:"
 link gemrc        .gemrc
@@ -672,9 +686,10 @@ fi
 # The entry it writes carries an absolute path and herdr matches on it verbatim:
 # rewriting the command to a $HOME form is not recognised, and a second,
 # duplicate entry gets appended instead (tried it -- the hook then runs twice).
-# So the path belongs to whichever machine installed it, and anywhere else it
-# points at nothing. Rather than fight herdr for ownership of its own line, drop
-# entries whose script is not on this machine and let it add one that is.
+# So the working copy keeps herdr's absolute path, and the herdrhook git filter
+# set up in the Claude Code section stores it as ~ in the repo. Entries whose
+# script is still not on this machine (a stale path from before the filter, or
+# a box without herdr's script yet) are dropped so herdr can add one that is.
 if command -v herdr &>/dev/null && [ -L "$HOME/.claude/settings.json" ]; then
   if [ ! -f "$HOME/.claude/hooks/herdr-agent-state.sh" ]; then
     herdr integration install claude >/dev/null 2>&1 &&

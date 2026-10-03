@@ -1,0 +1,21 @@
+#!/bin/sh
+# git clean/smudge filter for claude/settings.json (see .gitattributes).
+#
+# `herdr integration install claude` writes its SessionStart hook with this
+# machine's absolute home baked in, and only recognises the line in exactly
+# that form -- a $HOME or ~ version gets a duplicate appended beside it. So the
+# working copy has to keep herdr's absolute path, which differs per machine
+# (/Users/jeremy, /home/<user>, /home/<user>) and left settings.json modified
+# everywhere but the Mac that last committed it.
+#
+# clean:  what git stores -- a portable ~ path, valid even where this filter
+#         is not configured, since an unquoted ~ expands in the hook's shell.
+# smudge: what lands on disk -- herdr's own absolute, single-quoted form.
+case "$1" in
+  clean)
+    sed "s#bash '[^']*/\.claude/hooks/herdr-agent-state\.sh'#bash ~/.claude/hooks/herdr-agent-state.sh#" ;;
+  smudge)
+    sed "s#bash ~/\.claude/hooks/herdr-agent-state\.sh#bash '$HOME/.claude/hooks/herdr-agent-state.sh'#" ;;
+  *)
+    echo "usage: $0 clean|smudge" >&2; exit 2 ;;
+esac
