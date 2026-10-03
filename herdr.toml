@@ -78,6 +78,13 @@ rows = [["state_icon", "machine", "$dir", "tab"], ["terminal_title_stripped"]]
 # point is finding out without polling the sidebar.
 delivery = "herdr"
 
+[terminal]
+# Login panes on every machine, not just macOS (where "auto" already does
+# this). The NAS's login shell is busybox /bin/sh and only its ~/.profile
+# execs Entware's zsh, which a non-login pane never reads -- this keeps that
+# box working from the shared config, with no per-machine default_shell.
+shell_mode = "login"
+
 [advanced]
 # tmux: set -g history-limit 100000. herdr caps by bytes, not lines; 10MB
 # (the default) is roughly 100k lines, so 50MB buys real headroom for agent
