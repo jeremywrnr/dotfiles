@@ -5,7 +5,7 @@
 # machine's absolute home baked in, and only recognises the line in exactly
 # that form -- a $HOME or ~ version gets a duplicate appended beside it. So the
 # working copy has to keep herdr's absolute path, which differs per machine
-# (/Users/jeremy, /home/<user>, /home/<user>) and left settings.json modified
+# (/Users/<you> on macOS, /home/<user> on Linux) and left settings.json modified
 # everywhere but the Mac that last committed it.
 #
 # clean:  what git stores -- a portable ~ path, valid even where this filter
