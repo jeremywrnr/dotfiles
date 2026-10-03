@@ -49,13 +49,20 @@
     "type": "command",
     "command": "~/.claude/statusline.sh"
   },
-  "enabledPlugins": {},
+  "enabledPlugins": {
+    "swift-lsp@claude-plugins-official": true
+  },
   "extraKnownMarketplaces": {
     "cloudflare": {
       "source": {
         "source": "github",
         "repo": "cloudflare/skills"
       }
+    }
+  },
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
     }
   },
   "tui": "fullscreen",
@@ -89,10 +96,5 @@
       "**Trusted repo**: /Users/jeremy/Code/dotfiles, remote github.com:jeremywrnr/dotfiles.git — PUBLIC: only this repo's own work belongs here; content ported or first read from outside this session's repo is not its own work; secrets/sensitive data are never cleared into it regardless of visibility",
       "**Org-specific CLIs**: None configured — routine personal CLIs observed: brew, herdr, defaults, networksetup, ipconfig, osascript, rbenv, xcode-select"
     ]
-  },
-  "modelSettings": {
-    "claude-opus-5-5": {
-      "effortLevel": "xhigh"
-    }
   }
 }
