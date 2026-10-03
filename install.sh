@@ -505,13 +505,13 @@ echo "Python:"
 # Brew and most distros ship python3 but no bare `python`; point it at python3.
 # On macOS /usr/bin/python3 is an xcrun shim that dispatches on argv[0], so a
 # `python` symlink to it asks to install the CLT; resolve the real binary.
-PY3="$(type -ap python3 | grep -v '^/usr/bin/' | head -1)"
-if [[ -z "$PY3" && "$OSTYPE" == darwin* ]]; then
-  PY3="$(xcrun -f python3 2>/dev/null)"
-elif [[ -z "$PY3" ]]; then
+if [ -n "$IS_MACOS" ]; then
+  PY3="$(type -ap python3 | grep -v '^/usr/bin/' | head -1)"
+  [ -n "$PY3" ] || PY3="$(xcrun -f python3 2>/dev/null)"
+else
   PY3="$(command -v python3)"
 fi
-if [[ -n "$PY3" ]]; then
+if [ -n "$PY3" ]; then
   mkdir -p "$HOME/.local/bin"
   ln -sf "$PY3" "$HOME/.local/bin/python"
   echo "  ok: python -> $PY3 ($("$PY3" -V 2>&1 | cut -d' ' -f2))"
