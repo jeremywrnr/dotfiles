@@ -94,6 +94,10 @@ brew "pango"
 # backed up -- the live database is a moving target mid-snapshot.
 brew "restic"
 brew "imessage-exporter"
+# rclone exports Google-native files (Docs, Sheets, Slides) by file ID, which
+# neither the Drive web UI nor Takeout can do -- it is what turns the NAS's
+# .gdoc/.gsheet stubs into real .docx/.xlsx copies beside them.
+brew "rclone"
 
 # fonts + apps
 # This repo carries alacritty.toml, the theme-sync script and a LaunchAgent that
