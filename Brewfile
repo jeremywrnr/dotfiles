@@ -122,3 +122,5 @@ cask "font-meslo-lg-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
 cask "vlc"
 cask "zed"
+# f.lux. The cask was renamed from "flux", which brew still redirects to this.
+cask "flux-app"
