@@ -2,7 +2,7 @@
 [[ "$OSTYPE" == linux* ]] || return 0
 
 alias brew="sudo apt-get"
-alias brewup="sudo apt-get update && sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && sudo snap refresh"
+alias brewup="sudo apt-get update && sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && { ! command -v snap >/dev/null || sudo snap refresh; }"
 
 export XDG_DATA_DIRS="/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS"
 
