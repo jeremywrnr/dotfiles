@@ -55,6 +55,15 @@ pct_fmt=$(printf '%.0f%%' "$pct")
 
 left="$cwd_display"
 left_len=${#display_cwd}
+
+# Over SSH, lead with the short hostname so a remote session can't pass for local.
+if [ -n "${SSH_CONNECTION:-}${SSH_CLIENT:-}${SSH_TTY:-}" ]; then
+  host="${HOSTNAME:-$(hostname)}"
+  host="${host%%.*}"
+  left=$'\033[32m'"${host}${reset} ${left}"
+  left_len=$((left_len + ${#host} + 1))
+fi
+
 if [ -n "$branch_display" ]; then
   left="$left $branch_display"
   left_len=$((left_len + 1 + ${#branch}))
