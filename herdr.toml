@@ -71,7 +71,7 @@ sidebar_start_collapsed = false
 # under the wrong repo. $dir is pane metadata pushed by the chpwd hook in
 # zshrc and tracks the pane itself. Panes that never ran that hook render the
 # row without it.
-rows = [["state_icon", "machine", "$dir", "tab"],["terminal_title_stripped"]]
+rows = [["state_icon", "machine", "$dir", "tab"], ["terminal_title_stripped"]]
 
 [ui.toast]
 # Off by default. With several agents blocking on input at once, the whole
