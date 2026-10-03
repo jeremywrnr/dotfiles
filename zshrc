@@ -34,4 +34,3 @@ source $ZSH/oh-my-zsh.sh
 
 for _zmod in "$DOTFILES"/zsh/*.zsh(N); do source "$_zmod"; done
 unset _zmod
-export PATH=/Users/jeremy/.meteor:$PATH

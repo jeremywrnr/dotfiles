@@ -14,5 +14,8 @@ export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 [ -s "$BUN_INSTALL/_bun" ] && source "$BUN_INSTALL/_bun"
 
+# meteor -- its installer appends this to ~/.zshrc, which is this repo's zshrc.
+[ -d "$HOME/.meteor" ] && export PATH="$HOME/.meteor:$PATH"
+
 # Load local config (not in version control)
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
