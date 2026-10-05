@@ -20,6 +20,8 @@ existing files get backed up to `.bak`. machine-local config (api keys, etc) goe
 - `zsh/` — `00-path`, `10-linux` / `10-darwin`, `20-aliases`, `30-functions`, `35-herdr`, `40-tools`
 - `bin/` — standalone scripts, on `$PATH` (see `bin/readme.md`)
 - `vim/`, `zed/`, `alacritty/` — per-tool config
+- under WSL, `install.sh` merges `alacritty/dark.toml` into Windows Terminal's
+  settings.json as a color scheme (merged, not linked: the terminal rewrites it)
 - `screenshot/` — `install.sh` pins the capture location, format and thumbnail;
   the agent then mirrors each new shot onto the clipboard
 - LaunchAgent templates sit beside what they run; `install.sh` stamps in the paths

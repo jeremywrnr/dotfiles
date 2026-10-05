@@ -69,9 +69,12 @@ HAVE_BREW=""
 command -v brew &>/dev/null && HAVE_BREW=1
 
 # Separate questions: HAVE_BREW gates what needs the brew binary (Brewfile, VLC,
-# rbenv); IS_MACOS gates launchd, ~/Library, `defaults` and osxkeychain.
+# rbenv); IS_MACOS gates launchd, ~/Library, `defaults` and osxkeychain;
+# IS_WSL gates reaching across into the Windows side (Windows Terminal).
 IS_MACOS=""
 [ "$(uname -s)" = Darwin ] && IS_MACOS=1
+IS_WSL=""
+grep -qi microsoft /proc/version 2>/dev/null && IS_WSL=1
 
 echo "Shell:"
 link zshrc        .zshrc
@@ -153,6 +156,59 @@ else
     mkdir -p "$(dirname "$THEME")"
     cp "$DOTFILES/alacritty/dark.toml" "$THEME"
     echo "  seeded: theme.toml from dark.toml (no auto light/dark on Linux yet)"
+  fi
+fi
+
+echo ""
+echo "Windows Terminal:"
+# Under WSL the terminal is Windows Terminal, whose settings.json it rewrites
+# itself on every change made in its UI -- so merge into it rather than link it.
+# Builds GitHub Dark from alacritty/dark.toml, so the two cannot drift, and
+# points every WSL profile at it, over the scheme the distro's fragment ships
+# (Ubuntu's aubergine). tomllib is python 3.11+; older lands in the WARNING.
+if [ -z "$IS_WSL" ]; then
+  echo "  skipped (WSL only)"
+else
+  # cmd.exe warns about a UNC working directory, so ask it from C: instead.
+  WIN_LOCAL=$(cd /mnt/c && cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | tr -d '\r')
+  WT_SETTINGS=""
+  [ -n "$WIN_LOCAL" ] && WT_SETTINGS="$(wslpath -u "$WIN_LOCAL")/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json"
+  if [ ! -f "$WT_SETTINGS" ]; then
+    # Windows Terminal writes settings.json on first launch, not on install.
+    echo "  skipped (no settings.json yet: open Windows Terminal once, then rerun)"
+  else
+    [ -e "$WT_SETTINGS.bak" ] || cp "$WT_SETTINGS" "$WT_SETTINGS.bak"
+    python3 - "$WT_SETTINGS" "$DOTFILES/alacritty/dark.toml" <<'WT' ||
+import json, sys, tomllib
+path, palette = sys.argv[1], sys.argv[2]
+with open(palette, 'rb') as fh:
+    c = tomllib.load(fh)['colors']
+# Windows Terminal says purple where alacritty says magenta, and brightRed for
+# bright.red; it has no indexed colors, so dark.toml's two extras are dropped.
+wt = lambda k: 'purple' if k == 'magenta' else k
+scheme = {'name': 'GitHub Dark', **c['primary'],
+          'cursorColor': c['primary']['foreground'], 'selectionBackground': '#264f78'}
+scheme.update({wt(k): v for k, v in c['normal'].items()})
+scheme.update({'bright' + wt(k).capitalize(): v for k, v in c['bright'].items()})
+with open(path, encoding='utf-8-sig') as fh:
+    raw = fh.read()
+d = json.loads(raw)
+# Replace in place rather than append, so a rerun leaves the order alone.
+schemes = d.setdefault('schemes', [])
+schemes[:] = [scheme if s.get('name') == scheme['name'] else s for s in schemes]
+if scheme not in schemes:
+    schemes.append(scheme)
+wsl = [p for p in d.get('profiles', {}).get('list', []) if p.get('source') == 'Microsoft.WSL']
+for p in wsl:
+    p['colorScheme'] = scheme['name']
+changed = d != json.loads(raw)
+if changed:
+    with open(path, 'w', encoding='utf-8') as fh:
+        json.dump(d, fh, indent=4, ensure_ascii=False)
+        fh.write('\n')
+print(f"  {'set' if changed else 'ok'}: {scheme['name']} on {len(wsl)} WSL profile(s)")
+WT
+      echo "  WARNING: could not update settings.json; left as is"
   fi
 fi
 
