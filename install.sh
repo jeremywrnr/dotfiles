@@ -686,8 +686,7 @@ if ! command -v vim &>/dev/null; then
 # plug#begin is a silent no-op and :PlugInstall never exists, so the run below
 # would only end in the misleading "nothing landed" warning.
 elif vim --version 2>/dev/null | grep -q -- '-eval'; then
-  echo "  skipped (vim is a tiny build without +eval, so it can't run plugins;"
-  echo "  install the full vim package)"
+  echo "  skipped (vim lacks +eval, so it can't run plugins; install a full build of vim)"
 elif [ ! -f "$HOME/.vim/autoload/plug.vim" ]; then
   echo "  skipped (vim-plug missing; rerun the Vim section)"
 else
