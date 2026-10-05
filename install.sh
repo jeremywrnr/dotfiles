@@ -114,8 +114,11 @@ if [ -n "$HAVE_APT" ]; then
   if [ -n "$APT_MISSING" ]; then
     echo "  installing:$APT_MISSING"
     # This script runs under `set -e`; a failed install must not abort the
-    # symlinking that follows.
-    sudo apt-get install -y $APT_MISSING || echo "  WARNING: apt install failed"
+    # symlinking that follows. DEBIAN_FRONTEND=noninteractive keeps a package's
+    # postinst (iperf3 asks whether to run as a daemon) from blocking on a
+    # debconf dialog that a headless or backgrounded run can never answer; the
+    # defaults it then takes are the ones we want anyway.
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $APT_MISSING || echo "  WARNING: apt install failed"
   else
     echo "  ok: $APT_WANT"
   fi
