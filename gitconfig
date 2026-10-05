@@ -17,33 +17,35 @@
 [init]
     defaultBranch = main
 [alias]
-    s= status
-    a= add -A
-    c= commit -am
-    d= diff
-    t= tag -n9
-    wc=log --numstat --oneline
-    lp= log -p
-    lg= log --oneline --decorate --color --graph
-    lgg=log --pretty=format:'%C(yellow)%h %C(cyan)%ad%Cgreen%d %Creset%s' --date=short
-    la= log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
-    br= branch
-    co= checkout
-    ps= push
-    pl= pull
-    up= pull
-    last= log -p --max-count=1 --word-diff
-    alias= config --get-regexp alias
+    s = status
+    a = add -A
+    c = commit -am
+    d = diff
+    t = tag -n9
+    wc = log --numstat --oneline
+    lp = log -p
+    lg = log --oneline --decorate --color --graph
+    lgg = log --pretty=format:'%C(yellow)%h %C(cyan)%ad%Cgreen%d %Creset%s' --date=short
+    la = log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
+    br = branch
+    co = checkout
+    ps = push
+    pl = pull
+    up = pull
+    last = log -p --max-count=1 --word-diff
+    alias = config --get-regexp alias
     # was util/git-add-commit-push; pushes the current branch, not a hardcoded one.
     # `acp` opens the editor; `acp fix the thing` (quoted or not) commits with that message.
-    acp= "!f() { git add -A && git status && if [ $# -gt 0 ]; then git commit -m \"$*\"; else git commit -v; fi && git push origin HEAD; }; f"
+    acp = "!f() { git add -A && git status && if [ $# -gt 0 ]; then git commit -m \"$*\"; else git commit -v; fi && git push origin HEAD; }; f"
     # was util/git-historian: interactive rebase back to the root commit
     historian = !git rebase -i $(git rev-list --max-parents=0 HEAD)
-    su= !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
-    cob= !git branch --merged main | grep -vE '^[*]|main|master' | xargs -n 1 git branch -d
-    sb= !git reset --soft $(git merge-base main HEAD) && git commit -m squash-onto-main
+    su = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
+    cob = !git branch --merged main | grep -vE '^[*]|main|master' | xargs -n 1 git branch -d
+    sb = !git reset --soft $(git merge-base main HEAD) && git commit -m squash-onto-main
 [core]
     excludesfile = ~/.gitignore_global
+    editor = vim
+    autocrlf = input
 [diff]
     algorithm = minimal
     renames = true
