@@ -9,6 +9,7 @@ alias g="git"
 alias gcl="git clone"
 alias gd="git diff"
 alias gi="\vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"
+alias grhh="git reset --hard HEAD"
 alias godot="cd $DOTFILES"
 alias up="git pull"
 alias h='fc -l 1'
