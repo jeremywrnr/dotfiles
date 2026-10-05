@@ -682,14 +682,12 @@ echo "Vim plugins:"
 # quits 1 even on success -- ~/.vim/plugged is what to believe.
 if ! command -v vim &>/dev/null; then
   echo "  skipped (no vim on PATH)"
-# A tiny build (Entware's default `vim`, as on a NAS) has no vimscript at all:
+# A tiny build (some package managers' default `vim`) has no vimscript at all:
 # plug#begin is a silent no-op and :PlugInstall never exists, so the run below
-# would only end in the misleading "nothing landed" warning. Entware ships the
-# real one as vim-full; opkg needs /opt/bin on PATH under sudo for its wget shim.
+# would only end in the misleading "nothing landed" warning.
 elif vim --version 2>/dev/null | grep -q -- '-eval'; then
-  echo "  skipped (vim is a tiny build without +eval, so it can't run plugins)"
-  echo "  on Entware: sudo env PATH=/opt/bin:\$PATH opkg remove vim && \\"
-  echo "              sudo env PATH=/opt/bin:\$PATH opkg install vim-full"
+  echo "  skipped (vim is a tiny build without +eval, so it can't run plugins;"
+  echo "  install the full vim package)"
 elif [ ! -f "$HOME/.vim/autoload/plug.vim" ]; then
   echo "  skipped (vim-plug missing; rerun the Vim section)"
 else
