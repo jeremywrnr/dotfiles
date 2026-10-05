@@ -31,28 +31,46 @@ bin=${0:A:h}
 DOTFILES=${DOTFILES:-${bin:h}}
 state=${XDG_CACHE_HOME:-$HOME/.cache}/brewup
 
-# Homebrew prints a ten-line "macOS Intel x86_64 is unsupported" banner ahead of
-# every install or upgrade (Library/Homebrew/extend/os/mac/diagnostic.rb,
-# check_for_unsupported_macos, emitted through opoo so it lands on stderr).
-# HOMEBREW_DEVELOPER=1 is the only switch that turns it off, but that flag is
+# Homebrew prints a "macOS Intel x86_64 is unsupported" banner and a bottle
+# remediation ahead of every install or upgrade, then a Tier 3 support notice at
+# exit, all on stderr (Library/Homebrew/extend/os/mac/diagnostic.rb
+# check_for_unsupported_macos; diagnostic.rb macos_bottle_remediation and
+# report_support_tier). HOMEBREW_DEVELOPER=1 turns it off, but that flag is
 # read in ~39 other places -- it makes some warnings fatal and adds post-install
 # PATH audits -- which is far too much to buy silence on one banner.
+# HOMEBREW_INTEGRATION_TEST, a test hook, does too, and also drops the refusal
+# to fresh-install a core formula that has no bottle.
 #
 # Match the banner's own lines rather than deleting a /start/,/end/ range. A
 # range whose terminator upstream reworded would run to EOF and eat every later
-# stderr line, real errors included; nine independent patterns can only ever
-# fail open, leaking a line of banner instead. The two blank lines inside the
-# banner do survive -- cheap next to swallowing a build error.
+# stderr line, real errors included, and the Tier notice is not even next to the
+# rest. Independent patterns can only ever fail open, leaking a line of banner
+# instead. The blank lines inside the banner do survive -- cheap next to
+# swallowing a build error.
+#
+# brew bolds and underlines some of these lines whenever stdout is a tty, which
+# fd 3 keeps it, so each line is matched with its escape codes stripped: h saves
+# it, s strips the copy, g puts back the line as brew wrote it. -l, line
+# buffered: off a tty, sed would otherwise hold every stderr line back until
+# brewup exits, after all of stdout.
 drop_intel_banner() {
-  sed -e '/^Warning: You are using macOS /d' \
+  sed -l -e h -e $'s/\e\\[[0-9;]*m//g' \
+      -e '/^Warning: You are using macOS /d' \
       -e '/^We do not provide support for this /d' \
       -e '/^Apple have dropped Intel x86_64 support/d' \
       -e '/^GitHub Actions are dropping macOS Intel/d' \
       -e '/^Homebrew is a non-profit project run entirely by volunteers/d' \
       -e '/^If the biggest companies in the world cannot support/d' \
       -e '/^any longer, sadly neither can we\.$/d' \
-      -e '/^You will have better luck with MacPorts/d' \
-      -e '/^ *https:\/\/www\.macports\.org$/d'
+      -e '/^Homebrew no longer builds bottles/d' \
+      -e '/^Existing bottles may still work, but updated formulae may build/d' \
+      -e '/^Consider MacPorts, which provides binary packages/d' \
+      -e '/^ *https:\/\/www\.macports\.org$/d' \
+      -e '/^This is a Tier [0-9] configuration/d' \
+      -e '/^ *https:\/\/docs\.brew\.sh\/Support-Tiers#tier-/d' \
+      -e '/^You can report issues with Tier [0-9] configurations/d' \
+      -e '/^Read the above document before opening any issues/d' \
+      -e g
 }
 
 # What `brew bundle cleanup` acts on, hashed: the Brewfile plus every installed
