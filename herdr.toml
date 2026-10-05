@@ -63,8 +63,8 @@ sidebar_start_collapsed = false
 # sidebar_start_collapsed above.
 
 [ui.sidebar.agents]
-# "machine" labels which host an agent runs on, now that optiplex and nas
-# are saved machines (`herdr machine add <ssh-host>`).
+# "machine" labels which host an agent runs on, now that optiplex, nas,
+# thinkpad and mbp19 are saved machines (`herdr machine add <ssh-host>`).
 #
 # $dir over "workspace": the workspace token is the space label, fixed at the
 # cwd the space was created in, so an agent started after a `cd` gets filed
