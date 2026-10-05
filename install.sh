@@ -7,11 +7,11 @@ DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Not `sudo ./install.sh`. Under sudo every link lands in root's home, or lands
 # in yours owned by root so the next ordinary run cannot replace it; brew
 # refuses to run as root outright; and the launchd agent would be bootstrapped
-# into gui/0 instead of your session. The only step that needs privilege is the
-# apt-get in the VLC block, and it asks for its own.
+# into gui/0 instead of your session. The only steps that need privilege are the
+# apt-gets in the jq and VLC blocks, and they ask for their own.
 if [ "$EUID" -eq 0 ] && [ -z "$DOTFILES_ALLOW_ROOT" ]; then
   echo "install.sh: run this as yourself, not with sudo." >&2
-  echo "  the one step that needs root (apt-get install vlc) will prompt for it" >&2
+  echo "  the steps that need root (apt-get install jq, vlc) will prompt for them" >&2
   echo "  set DOTFILES_ALLOW_ROOT=1 to override (root-only containers)" >&2
   exit 1
 fi
@@ -308,6 +308,25 @@ if [ -n "$HAVE_BREW" ] && [ -f "$DOTFILES/Brewfile" ]; then
   echo ""
 fi
 
+echo "jq:"
+# claude/statusline.sh and claude/tab-title.sh parse Claude Code's JSON with it;
+# without it the statusline shows "/" for the cwd. The Brewfile covers macOS.
+if command -v jq &>/dev/null; then
+  echo "  ok: $(jq --version)"
+elif [ -n "$IS_MACOS" ]; then
+  echo "  WARNING: jq missing (brew bundle should have installed it)"
+elif command -v apt-get &>/dev/null; then
+  echo "  installing jq (apt may ask for your password)"
+  if sudo apt-get install -y -qq jq >/dev/null; then
+    echo "  installed"
+  else
+    echo "  WARNING: apt-get install jq failed"
+  fi
+else
+  echo "  WARNING: no apt-get here, install jq by hand"
+fi
+
+echo ""
 echo "VLC:"
 # Baseline on every machine and made the default video player: Brewfile cask +
 # LaunchServices on macOS, apt (not the sandboxed snap) + xdg-mime on Linux.
