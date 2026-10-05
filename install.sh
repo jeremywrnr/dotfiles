@@ -78,6 +78,16 @@ grep -qi microsoft /proc/version 2>/dev/null && IS_WSL=1
 HAVE_APT=""
 command -v apt-get &>/dev/null && HAVE_APT=1
 
+# Every apt install goes through here. DEBIAN_FRONTEND=noninteractive keeps a
+# package's postinst (iperf3 asks whether to run as a daemon) from blocking on
+# a debconf dialog that a headless or backgrounded run can never answer; the
+# defaults it then takes are the ones we want anyway. It rides on the sudo
+# command line because sudo resets the environment, so an export would not
+# reach apt-get.
+apt_install() {
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
+}
+
 if [ -n "$HAVE_APT" ]; then
   echo "APT keys:"
   KEYRING=/etc/apt/keyrings/yarn-archive-keyring.gpg
@@ -114,11 +124,8 @@ if [ -n "$HAVE_APT" ]; then
   if [ -n "$APT_MISSING" ]; then
     echo "  installing:$APT_MISSING"
     # This script runs under `set -e`; a failed install must not abort the
-    # symlinking that follows. DEBIAN_FRONTEND=noninteractive keeps a package's
-    # postinst (iperf3 asks whether to run as a daemon) from blocking on a
-    # debconf dialog that a headless or backgrounded run can never answer; the
-    # defaults it then takes are the ones we want anyway.
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $APT_MISSING || echo "  WARNING: apt install failed"
+    # symlinking that follows.
+    apt_install $APT_MISSING || echo "  WARNING: apt install failed"
   else
     echo "  ok: $APT_WANT"
   fi
@@ -556,9 +563,9 @@ if command -v jq &>/dev/null; then
   echo "  ok: $(jq --version)"
 elif [ -n "$IS_MACOS" ]; then
   echo "  WARNING: jq missing (brew bundle should have installed it)"
-elif command -v apt-get &>/dev/null; then
+elif [ -n "$HAVE_APT" ]; then
   echo "  installing jq (apt may ask for your password)"
-  if sudo apt-get install -y -qq jq >/dev/null; then
+  if apt_install -qq jq >/dev/null; then
     echo "  installed"
   else
     echo "  WARNING: apt-get install jq failed"
@@ -671,7 +678,7 @@ else
     echo "  ok: $(vlc --version 2>/dev/null | head -1)"
   elif [ -n "$HAVE_APT" ]; then
     echo "  installing vlc (apt may ask for your password)"
-    if sudo apt-get install -y -qq vlc >/dev/null; then
+    if apt_install -qq vlc >/dev/null; then
       echo "  installed"
     else
       echo "  WARNING: apt-get install vlc failed"
