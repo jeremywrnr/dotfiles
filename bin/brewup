@@ -30,6 +30,9 @@
 bin=${0:A:h}
 DOTFILES=${DOTFILES:-${bin:h}}
 state=${XDG_CACHE_HOME:-$HOME/.cache}/brewup
+# The dotfiles Brewfile reads this one too, when the private machines repo is
+# checked out beside it.
+private=${DOTFILES:h}/machines/Brewfile
 
 # Homebrew prints a "macOS Intel x86_64 is unsupported" banner and a bottle
 # remediation ahead of every install or upgrade, then a Tier 3 support notice at
@@ -73,10 +76,10 @@ drop_intel_banner() {
       -e g
 }
 
-# What `brew bundle cleanup` acts on, hashed: the Brewfile plus every installed
+# What `brew bundle cleanup` acts on, hashed: both Brewfiles plus every installed
 # keg, cask and tap. Directory listings, so no brew startup cost.
 inventory() {
-  { cat "$DOTFILES/Brewfile"
+  { cat "$DOTFILES/Brewfile" "$private"
     ls "$(brew --cellar)" "$(brew --caskroom)" "$(brew --repo)"/Library/Taps/*(N)
   } 2>/dev/null | shasum
 }
@@ -111,7 +114,12 @@ main() {
     fi
   fi
 
-  if [[ "$(inventory)" != "$(cat "$state/bundle" 2>/dev/null)" ]]; then
+  # Without the private Brewfile, everything it lists looks unwanted, and
+  # cleanup would uninstall it all. That's a machine set up before the machines
+  # repo was cloned, or one where it moved: skip, and say so.
+  if [[ ! -f $private ]]; then
+    print -u2 "brewup: skipped bundle cleanup, no $private (it would uninstall everything only that file lists)"
+  elif [[ "$(inventory)" != "$(cat "$state/bundle" 2>/dev/null)" ]]; then
     brew bundle cleanup --force --file="$DOTFILES/Brewfile" &&
       inventory > "$state/bundle"
   fi

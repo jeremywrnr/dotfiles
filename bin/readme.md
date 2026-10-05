@@ -11,7 +11,7 @@ adding a file here adds a command — no symlinking, no re-running `install.sh`.
 | `mirror-github` | mirror a GitHub repo onto the self-hosted Gitea instance |
 | `git-remote-setter` | flip a repo's origin between https and ssh (`git remote-setter ssh`) |
 | `git-open` | open the repo's web remote in a browser (`git open`) |
-| `brewup` | upgrade Homebrew without compiling: bottles and native casks only, each step skipped when there is nothing to do (`--all` for everything) |
+| `brewup` | upgrade Homebrew without compiling: bottles and native casks only, each step skipped when there is nothing to do (`--all` for everything); no `brew bundle cleanup` without `../machines/Brewfile` beside the repo |
 | `brew-bottled` | list the outdated Homebrew packages that install prebuilt; what `brewup` upgrades, and with `-v` why the rest are held back |
 | `git-exec` | run a command in every git repo below the cwd, naming each one first (`cd ~/Code && git exec 'pwd && git up'`) |
 

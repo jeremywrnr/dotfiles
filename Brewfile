@@ -1,10 +1,3 @@
-# Homebrew 6 will not load a formula or cask from a third-party tap until that
-# tap has been trusted, and refuses outright rather than prompting -- which
-# aborts `brew bundle install` on the first one. `trusted: true` records that
-# decision here, in the file that already says which taps this machine wants,
-# so install.sh needs no separate `brew trust` step.
-tap "jeremywrnr/tap", trusted: true
-
 # shell
 brew "fzf"
 brew "eza"
@@ -61,9 +54,6 @@ brew "yt-dlp"
 # open enough for the license terms brew requires). unar reads rar all the same.
 brew "unar"
 
-# personal
-brew "apple-to-last-fm"
-
 # misc
 # duti reads the live LaunchServices database, which is how the VLC block in
 # install.sh checks which video types actually point at VLC -- it writes them
@@ -78,15 +68,6 @@ brew "gmp"
 brew "just"
 brew "libffi"
 brew "pango"
-
-# imessage-exporter gets Messages out of its SQLite store, so the export can be
-# backed up -- the live database is a moving target mid-snapshot.
-brew "restic"
-brew "imessage-exporter"
-# rclone exports Google-native files (Docs, Sheets, Slides) by file ID, which
-# neither the Drive web UI nor Takeout can do -- it is what turns synced
-# .gdoc/.gsheet stubs into real .docx/.xlsx copies beside them.
-brew "rclone"
 
 # fonts + apps
 # This repo carries alacritty.toml, the theme-sync script and a LaunchAgent that
@@ -128,3 +109,10 @@ if Hardware::CPU.arm?
   # has on fpath, so that needs nothing here. macOS only; an Intel build pulls in go.
   brew "mole"
 end
+
+# Personal extras from the private machines repo, when it is checked out beside
+# this one. realpath, since `brew bundle --global` reads this file through the
+# ~/.Brewfile symlink. Without it, this file is the whole default set -- and
+# bin/brewup skips `brew bundle cleanup`, which would uninstall those extras.
+extra = File.join(File.dirname(File.realpath(__FILE__)), "..", "machines", "Brewfile")
+instance_eval(File.read(extra), extra) if File.exist?(extra)
