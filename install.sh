@@ -644,7 +644,11 @@ fetch_bin() {
 # i.e. this repo's zshrc. Needs unzip. A node still comes from `fnm install --lts`.
 fetch_bin fnm https://fnm.vercel.app/install \
   bash -s -- --install-dir "$HOME/.local/bin" --skip-shell
-fetch_bin uv https://astral.sh/uv/install.sh sh
+# uv: when ~/.local/bin is not on the caller's PATH (a non-interactive ssh, say)
+# its installer appends a `. ~/.local/bin/env` line to .zshrc, .bashrc and
+# .profile -- the first two symlinks into this repo -- and seeds a fish config.
+# zsh/ and bashrc already put ~/.local/bin on PATH, so that is never needed.
+fetch_bin uv https://astral.sh/uv/install.sh env UV_NO_MODIFY_PATH=1 sh
 fetch_bin zoxide https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh \
   sh -s -- --bin-dir "$HOME/.local/bin"
 # herdr: its installer reads the same manifest as `herdr update`, so the two agree.
