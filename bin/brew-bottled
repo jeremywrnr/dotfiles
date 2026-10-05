@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+"""
+Print the outdated Homebrew packages that upgrade without compiling anything.
+
+Homebrew stopped building bottles for macOS Intel, so on an x86_64 Mac most
+`brew upgrade`s fall back to building from source -- llvm, rust and python
+for hours. There is no switch to forbid that (--force-bottle only prefers a
+bottle that exists), so this works out the safe set up front:
+
+  formula  has a bottle for this machine, and so does every runtime
+           dependency the upgrade would also install or upgrade (current
+           dependencies are left alone by brew and don't count)
+  cask     built for this CPU -- no arm64-only app on Intel, no Rosetta-only
+           app on Apple Silicon -- and any formulae it needs pass the above
+
+  brew-bottled      one "formula NAME" / "cask NAME" line per upgradable package
+  brew-bottled -v   also report each skipped package on stderr, and why
+
+Bottle and arch data come from the package index `brew update` already keeps
+on disk, resolved for this machine: ~3s to read against ~15s for `brew info`,
+which matters on the Intel Macs this exists for. If that file's internal
+format moves, it falls back to `brew info --json=v2`. Never `brew ruby`, which
+flips Homebrew's persistent developer mode on as a side effect.
+"""
+
+import glob
+import json
+import os
+import platform
+import subprocess
+import sys
+
+ARM = platform.machine() == "arm64"
+CACHE = os.path.expanduser("~/Library/Caches/Homebrew/api/internal/packages.*.jws.json")
+
+# Bottle tags by macOS major version, newest first: brew pours a bottle built
+# for an older macOS of the same arch. Only the `brew info` fallback needs it.
+MACOS = [
+    (26, "tahoe"), (15, "sequoia"), (14, "sonoma"), (13, "ventura"),
+    (12, "monterey"), (11, "big_sur"),
+]
+
+
+def brew_json(*args):
+    out = subprocess.run(["brew", *args], capture_output=True, text=True)
+    if out.returncode:
+        sys.exit(f"brew-bottled: brew {' '.join(args)} failed\n{out.stderr}")
+    return json.loads(out.stdout)
+
+
+def short(name):
+    return name.rsplit("/", 1)[-1]  # homebrew/core/foo -> foo
+
+
+class Index:
+    """Per-machine package index that `brew update` writes; None if unusable."""
+
+    @staticmethod
+    def load():
+        try:
+            path = max(glob.glob(CACHE), key=os.path.getmtime)
+            with open(path) as f:
+                payload = json.loads(json.load(f)["payload"])
+            formulae, casks = payload["formulae"], payload["casks"]
+            if "stable_version" not in formulae["git"]:
+                return None  # a format this was not written against
+        except (ValueError, KeyError, OSError, TypeError):
+            return None
+        return Index(formulae, casks)
+
+    def __init__(self, formulae, casks):
+        self.formulae, self.casks = formulae, casks
+
+    def formula(self, name):
+        f = self.formulae.get(name)
+        if f is None:
+            return None
+        deps = [d for d in f.get("stable_dependencies", []) if isinstance(d, str)]
+        return bool(f.get("bottle_tag")), deps  # dicts are :build/:test deps
+
+    def cask(self, name):
+        c = self.casks.get(name)
+        if c is None:
+            return None
+        dep = c.get("depends_on_args") or {}
+        return dep.get(":arch"), bool(c.get("caveats_rosetta")), dep.get(":formula", [])
+
+
+class Info:
+    """Fallback: the same answers from `brew info --json=v2`, batched."""
+
+    def __init__(self, formulae, casks):
+        major = int(platform.mac_ver()[0].split(".")[0])
+        prefix = "arm64_" if ARM else ""
+        self.tags = {"all"} | {prefix + n for v, n in MACOS if v <= major}
+        self.f, self.c = {}, {}
+        self.fetch(formulae, casks)
+
+    def fetch(self, formulae=(), casks=()):
+        if formulae:
+            for f in brew_json("info", "--json=v2", "--formula", *formulae)["formulae"]:
+                self.f[f["name"]] = f
+        if casks:
+            for c in brew_json("info", "--json=v2", "--cask", *casks)["casks"]:
+                self.c[c["token"]] = c
+
+    def formula(self, name):
+        if name not in self.f:
+            self.fetch(formulae=[name])  # a dependency new to this version
+        f = self.f[name]
+        files = f.get("bottle", {}).get("stable", {}).get("files", {})
+        return not self.tags.isdisjoint(files), f.get("dependencies", [])
+
+    def cask(self, name):
+        c = self.c[name]
+        dep = c.get("depends_on") or {}
+        arches = {a.get("type") for a in dep.get("arch", [])}
+        arch = None if arches in (set(), {"arm", "intel"}) else (":arm64" if arches == {"arm"} else ":intel")
+        return arch, bool(c.get("caveats_rosetta")), dep.get("formula", [])
+
+
+def main():
+    verbose = "-v" in sys.argv[1:]
+    out = brew_json("outdated", "--json=v2")
+    outdated = {short(f["name"]) for f in out["formulae"] if not f.get("pinned")}
+    casks = sorted(short(c["name"]) for c in out["casks"] if not c.get("pinned"))
+    if not outdated and not casks:
+        return
+
+    src = Index.load() or Info(sorted(outdated), casks)
+    cellar = os.environ.get("HOMEBREW_CELLAR") or subprocess.run(
+        ["brew", "--cellar"], capture_output=True, text=True).stdout.strip()
+    memo = {}
+
+    def blockers(name, path=()):
+        """Bottleless formulae brew would build if asked to upgrade `name`."""
+        name = short(name)
+        if name in memo:
+            return memo[name]
+        if name in path:
+            return set()
+        if name not in outdated and os.path.isdir(os.path.join(cellar, name)):
+            return set()  # installed and current: brew won't touch it
+        f = src.formula(name)
+        if f is None:
+            found = {name}  # unknown to the index: can't vouch for a bottle
+        else:
+            bottled, deps = f
+            found = set() if bottled else {name}
+            for dep in deps:
+                found |= blockers(dep, path + (name,))
+        memo[name] = found
+        return found
+
+    def skip(kind, name, why):
+        if verbose:
+            print(f"skip {kind} {name}: {why}", file=sys.stderr)
+
+    for name in sorted(outdated):
+        bad = blockers(name)
+        if bad:
+            skip("formula", name, "no bottle for " + ", ".join(sorted(bad)))
+        else:
+            print("formula", name)
+
+    for name in casks:
+        c = src.cask(name)
+        if c is None:
+            skip("cask", name, "not in the package index")
+            continue
+        arch, rosetta, formulae = c
+        bad = set().union(*map(blockers, formulae))
+        if arch and arch != (":arm64" if ARM else ":intel"):
+            skip("cask", name, f"built only for {arch.lstrip(':')}")
+        elif ARM and rosetta:
+            skip("cask", name, "Intel-only, needs Rosetta")
+        elif bad:
+            skip("cask", name, "needs formulae with no bottle: " + ", ".join(sorted(bad)))
+        else:
+            print("cask", name)
+
+
+if __name__ == "__main__":
+    main()

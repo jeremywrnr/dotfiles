@@ -1,0 +1,110 @@
+#!/usr/bin/env zsh
+# brewup -- upgrade Homebrew without compiling anything.
+#
+# Homebrew ships no bottles for macOS Intel any more, so a plain `brew upgrade`
+# there compiles llvm, rust and python for hours. brew-bottled (next to this)
+# picks the formulae whose whole outdated dependency chain is bottled and the
+# casks built for this CPU; the rest are held back and named.
+# NO_INSTALLED_DEPENDENTS_CHECK stops brew from also upgrading or rebuilding the
+# dependents of what it touches -- the other path to a surprise source build.
+#
+# Each step is skipped when it has nothing to do, so a re-run converges on the
+# ~5s `brew outdated` check: the package index refreshes at most hourly (`brew
+# update` costs 10-30s here even when nothing changed), and `brew bundle
+# cleanup` (~40s) runs only when the Brewfile or the set of installed kegs,
+# casks and taps differs from its last clean run. Old kegs go in brew's own
+# post-upgrade cleanup; the full prefix scan (`cleanup --prune-prefix`, ~2min)
+# is left to brew's 30-day one.
+#
+# A script rather than a zsh function: a function is frozen into every shell at
+# startup, and these shells live for days, so an edit here never reached them
+# -- one went on running a plain `brew upgrade` and compiling for hours.
+#
+#   brewup          bottles and native casks only
+#   brewup --all    the old everything-goes upgrade, source builds and all
+
+[[ "$OSTYPE" == darwin* ]] || { print -u2 "brewup: macOS only (Linux has the apt alias in zsh/10-linux.zsh)"; exit 1 }
+
+# Here at top level, where $0 is this script; inside a function it is the
+# function's name, and ${0:A:h} would resolve against the cwd.
+bin=${0:A:h}
+DOTFILES=${DOTFILES:-${bin:h}}
+state=${XDG_CACHE_HOME:-$HOME/.cache}/brewup
+
+# Homebrew prints a ten-line "macOS Intel x86_64 is unsupported" banner ahead of
+# every install or upgrade (Library/Homebrew/extend/os/mac/diagnostic.rb,
+# check_for_unsupported_macos, emitted through opoo so it lands on stderr).
+# HOMEBREW_DEVELOPER=1 is the only switch that turns it off, but that flag is
+# read in ~39 other places -- it makes some warnings fatal and adds post-install
+# PATH audits -- which is far too much to buy silence on one banner.
+#
+# Match the banner's own lines rather than deleting a /start/,/end/ range. A
+# range whose terminator upstream reworded would run to EOF and eat every later
+# stderr line, real errors included; nine independent patterns can only ever
+# fail open, leaking a line of banner instead. The two blank lines inside the
+# banner do survive -- cheap next to swallowing a build error.
+drop_intel_banner() {
+  sed -e '/^Warning: You are using macOS /d' \
+      -e '/^We do not provide support for this /d' \
+      -e '/^Apple have dropped Intel x86_64 support/d' \
+      -e '/^GitHub Actions are dropping macOS Intel/d' \
+      -e '/^Homebrew is a non-profit project run entirely by volunteers/d' \
+      -e '/^If the biggest companies in the world cannot support/d' \
+      -e '/^any longer, sadly neither can we\.$/d' \
+      -e '/^You will have better luck with MacPorts/d' \
+      -e '/^ *https:\/\/www\.macports\.org$/d'
+}
+
+# What `brew bundle cleanup` acts on, hashed: the Brewfile plus every installed
+# keg, cask and tap. Directory listings, so no brew startup cost.
+inventory() {
+  { cat "$DOTFILES/Brewfile"
+    ls "$(brew --cellar)" "$(brew --caskroom)" "$(brew --repo)"/Library/Taps/*(N)
+  } 2>/dev/null | shasum
+}
+
+main() {
+  local -a pkgs held formulae casks
+  mkdir -p "$state" || return
+
+  # brew's own update clock (the FETCH_HEAD it touches on every update), so an
+  # update anything else did in the last hour counts too. Nothing after it
+  # auto-updates: outdated, upgrade and bundle all would, refetching the package
+  # index whenever it is over 7.5 minutes old.
+  HOMEBREW_AUTO_UPDATE_SECS=3600 brew update-if-needed
+  export HOMEBREW_NO_AUTO_UPDATE=1
+
+  if [[ "$1" == --all ]]; then
+    brew upgrade --yes && brew cleanup || return
+  else
+    pkgs=(${(f)"$("$bin/brew-bottled" -v 2>"$state/held")"}) || return
+    held=(${${${(f)"$(<"$state/held")"}#skip * }%%:*})
+    formulae=(${${(M)pkgs:#formula *}#formula })
+    casks=(${${(M)pkgs:#cask *}#cask })
+    (( $#held )) && print -u2 "brewup: held back, no prebuilt package: $held (\`brew-bottled -v\` says why)"
+
+    # Each list is checked first: `brew upgrade --formula` with no names
+    # upgrades every formula, which is the whole thing this avoids.
+    if (( $#formulae )); then
+      HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew upgrade --yes --formula $formulae || return
+    fi
+    if (( $#casks )); then
+      brew upgrade --yes --cask $casks || return
+    fi
+  fi
+
+  if [[ "$(inventory)" != "$(cat "$state/bundle" 2>/dev/null)" ]]; then
+    brew bundle cleanup --force --file="$DOTFILES/Brewfile" &&
+      inventory > "$state/bundle"
+  fi
+}
+
+# Only stderr goes through the filter; stdout keeps its tty (fd 3) so brew's
+# progress renders. A pipeline rather than 2> >(...), so the script waits for
+# the filter to drain before exiting instead of leaving lines after the prompt.
+# No multios: with it, 1>&3 on a piped command copies stdout to both fd 3 and
+# the pipe, and every line brew prints shows up twice.
+unsetopt multios
+exec 3>&1
+main "$@" 2>&1 1>&3 3>&- | drop_intel_banner >&2
+exit $pipestatus[1]
