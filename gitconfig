@@ -36,7 +36,8 @@
     alias = config --get-regexp alias
     # was util/git-add-commit-push; pushes the current branch, not a hardcoded one.
     # `acp` opens the editor; `acp fix the thing` (quoted or not) commits with that message.
-    acp = "!f() { git add -A && git status && if [ $# -gt 0 ]; then git commit -m \"$*\"; else git commit -v; fi && git push origin HEAD; }; f"
+    # With nothing staged it skips the commit and still pushes, so unpushed commits go out.
+    acp = "!f() { git add -A && git status && if git diff --cached --quiet; then :; elif [ $# -gt 0 ]; then git commit -m \"$*\"; else git commit -v; fi && git push origin HEAD; }; f"
     # was util/git-historian: interactive rebase back to the root commit
     historian = !git rebase -i $(git rev-list --max-parents=0 HEAD)
     su = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
