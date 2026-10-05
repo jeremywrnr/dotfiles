@@ -245,6 +245,24 @@ else
 fi
 
 echo ""
+echo "Screen Sharing:"
+# Report only, never switched on from here: it opens the Mac to remote control,
+# so that stays a deliberate per-machine choice in System Settings. When on,
+# launchd listens on 5900 for Apple's VNC and checks logins against this Mac's
+# own accounts. print-disabled reads without sudo; it says "enabled" on recent
+# macOS and "false" (as in not disabled) on older ones.
+if [ -n "$IS_MACOS" ]; then
+  if launchctl print-disabled system 2>/dev/null |
+    grep -qE '"com\.apple\.screensharing" => (enabled|false)'; then
+    echo "  ok: on, at vnc://$(scutil --get LocalHostName).local"
+  else
+    echo "  off: System Settings > General > Sharing > Screen Sharing to allow VNC in"
+  fi
+else
+  echo "  skipped (macOS only)"
+fi
+
+echo ""
 echo "Herdr:"
 # herdr writes logs, sockets, and session.json into this same directory, so only
 # config.toml is linked -- never the directory itself.
