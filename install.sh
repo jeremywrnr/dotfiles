@@ -356,11 +356,22 @@ fi
 echo ""
 if [ -n "$HAVE_BREW" ] && [ -f "$DOTFILES/Brewfile" ]; then
   echo "Brew:"
-  # Not fatal: a cask whose app was installed by hand fails the whole bundle,
-  # which under `set -e` would skip everything below. `brew install --cask
-  # --force <name>` adopts such an app.
-  brew bundle install --file="$DOTFILES/Brewfile" --quiet ||
+  # Install what is missing, never upgrade. `brew bundle install` upgrades every
+  # outdated entry by default, and Homebrew builds no bottles for macOS Intel, so
+  # there that compiles git, ffmpeg and imagemagick from source for an hour.
+  # Upgrades are bin/brewup's job, which keeps to bottles. The check (~1s) lets a
+  # machine with nothing missing skip bundle install and `brew update` entirely;
+  # it reads only what is installed, so it must not auto-update either, which
+  # every bundle subcommand otherwise does (10-30s once FETCH_HEAD is a day old).
+  if HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --no-upgrade --file="$DOTFILES/Brewfile" >/dev/null 2>&1; then
+    echo "  ok: everything in the Brewfile is installed"
+  # Not fatal: one failed entry fails the whole bundle, which under `set -e`
+  # would skip everything below. bundle passes --adopt, so an app installed by
+  # hand at the cask's version is taken over in place; one at another version
+  # fails, and `brew install --cask --force <name>` replaces it.
+  elif ! brew bundle install --no-upgrade --file="$DOTFILES/Brewfile" --quiet; then
     echo "  WARNING: some brew entries failed (see above); continuing"
+  fi
   echo ""
 fi
 

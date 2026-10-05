@@ -7,7 +7,9 @@ existing files get backed up to `.bak`. machine-local config (api keys, etc) goe
 
 ## deps
 
-    brew bundle install
+    brew bundle install --no-upgrade
+
+upgrades go through `brewup`, which only takes prebuilt bottles.
 
 ## notes
 
