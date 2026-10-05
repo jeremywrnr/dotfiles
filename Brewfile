@@ -70,17 +70,6 @@ brew "apple-to-last-fm"
 # through the preference store instead, since `duti -s` now costs a dialog each.
 brew "duti"
 brew "cloudflared"
-# mole (github.com/tw93/Mole) -- cache/log cleanup, app uninstall that also
-# takes the leftovers, disk usage by directory, and a system monitor, in place
-# of CleanMyMac/AppCleaner/DaisyDisk. It answers to both `mo` and `mole`; the
-# README and its own help use `mo`.
-#
-# The core formula, not the curl | bash the README leads with: same upstream
-# tags, and it stays inside the one thing that already knows what this machine
-# has. It drops a zsh completion in brew's site-functions, which zshrc already
-# has on fpath, so that needs nothing here. macOS only, and core bottles it for
-# arm64 alone -- an Intel Mac builds it from source and pulls go in to do that.
-brew "mole"
 # web-ext is absent for the uv reason above, one step removed: it depends on
 # node, so every node bump rebuilt it. Use `npx web-ext`, or `npm i -g web-ext`
 # -- but fnm scopes globals per node version, so a global install needs redoing
@@ -118,3 +107,24 @@ cask "vlc"
 cask "zed"
 # f.lux. The cask was renamed from "flux", which brew still redirects to this.
 cask "flux-app"
+
+# arm64 only -- everything above is wanted on every Mac; this section is the one
+# place that knows about CPUs. Homebrew stopped building macOS Intel bottles, so
+# on an Intel Mac a formula here would compile from source (and drag in its
+# toolchain) on every install and upgrade. Gating it keeps `brew bundle install`
+# from starting that build, and `brew bundle check` (install.sh's fast path)
+# from reporting a keg that is absent on purpose as missing. Only formulae that
+# are not already installed on the Intel Macs belong here: gating an installed
+# one makes cleanup remove it.
+if Hardware::CPU.arm?
+  # mole (github.com/tw93/Mole) -- cache/log cleanup, app uninstall that also
+  # takes the leftovers, disk usage by directory, and a system monitor, in place
+  # of CleanMyMac/AppCleaner/DaisyDisk. It answers to both `mo` and `mole`; the
+  # README and its own help use `mo`.
+  #
+  # The core formula, not the curl | bash the README leads with: same upstream
+  # tags, and it stays inside the one thing that already knows what this machine
+  # has. It drops a zsh completion in brew's site-functions, which zshrc already
+  # has on fpath, so that needs nothing here. macOS only; an Intel build pulls in go.
+  brew "mole"
+end
