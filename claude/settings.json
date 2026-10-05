@@ -81,7 +81,7 @@
       "**CI/CD deploy targets**: None configured",
       "**Network posture**: None configured",
       "**Host containment**: None configured — assume Claude Code runs on an ordinary developer machine or CI runner with open internet",
-      "**Source control**: The trusted repo (jeremywrnr/dotfiles on github.com) and its remote only (no additional orgs configured)",
+      "**Source control**: The trusted repos (jeremywrnr/dotfiles on github.com; jeremy/machines on the self-hosted Gitea at git.jeremywrnr.com) and their remotes only (no additional orgs configured)",
       "**Trusted internal domains**: None configured",
       "**Trusted cloud buckets**: None configured",
       "**Key internal services**: None configured",
@@ -94,6 +94,7 @@
       "### User-specific",
       "**Primary use of Claude Code**: software development (personal dotfiles/config management)",
       "**Trusted repo**: /Users/jeremy/Code/dotfiles, remote github.com:jeremywrnr/dotfiles.git — PUBLIC: only this repo's own work belongs here; content ported or first read from outside this session's repo is not its own work; secrets/sensitive data are never cleared into it regardless of visibility",
+      "**Trusted private repo**: /Users/jeremy/Code/machines, remote git@git.jeremywrnr.com:jeremy/machines.git (https://git.jeremywrnr.com/jeremy/machines) — PRIVATE: per-host ssh config, host notes and shortcuts belong here rather than in the public dotfiles",
       "**Org-specific CLIs**: None configured — routine personal CLIs observed: brew, herdr, defaults, networksetup, ipconfig, osascript, rbenv, xcode-select"
     ]
   }
