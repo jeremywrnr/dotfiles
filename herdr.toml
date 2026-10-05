@@ -63,8 +63,8 @@ sidebar_start_collapsed = false
 # sidebar_start_collapsed above.
 
 [ui.sidebar.agents]
-# "machine" labels which host an agent runs on, now that optiplex, nas,
-# thinkpad and mbp19 are saved machines (`herdr machine add <ssh-host>`).
+# "machine" labels which host an agent runs on, now that remote hosts are
+# saved machines (`herdr machine add <ssh-host>`).
 #
 # $dir over "workspace": the workspace token is the space label, fixed at the
 # cwd the space was created in, so an agent started after a `cd` gets filed
@@ -80,8 +80,8 @@ delivery = "herdr"
 
 [terminal]
 # Login panes on every machine, not just macOS (where "auto" already does
-# this). The NAS's login shell is busybox /bin/sh and only its ~/.profile
-# execs Entware's zsh, which a non-login pane never reads -- this keeps that
+# this). On a NAS whose login shell is busybox /bin/sh, only ~/.profile
+# execs Entware's zsh, which a non-login pane never reads -- this keeps such a
 # box working from the shared config, with no per-machine default_shell.
 shell_mode = "login"
 

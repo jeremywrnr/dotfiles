@@ -84,7 +84,7 @@ brew "pango"
 brew "restic"
 brew "imessage-exporter"
 # rclone exports Google-native files (Docs, Sheets, Slides) by file ID, which
-# neither the Drive web UI nor Takeout can do -- it is what turns the NAS's
+# neither the Drive web UI nor Takeout can do -- it is what turns synced
 # .gdoc/.gsheet stubs into real .docx/.xlsx copies beside them.
 brew "rclone"
 

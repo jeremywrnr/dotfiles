@@ -678,7 +678,7 @@ echo "Vim plugins:"
 # quits 1 even on success -- ~/.vim/plugged is what to believe.
 if ! command -v vim &>/dev/null; then
   echo "  skipped (no vim on PATH)"
-# A tiny build (Entware's default `vim`, as on the NAS) has no vimscript at all:
+# A tiny build (Entware's default `vim`, as on a NAS) has no vimscript at all:
 # plug#begin is a silent no-op and :PlugInstall never exists, so the run below
 # would only end in the misleading "nothing landed" warning. Entware ships the
 # real one as vim-full; opkg needs /opt/bin on PATH under sudo for its wget shim.
