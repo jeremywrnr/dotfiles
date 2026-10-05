@@ -6,6 +6,7 @@ alias bx="bundle exec"
 alias c="zed ."
 alias fw='nocorrect fw'
 alias g="git"
+alias gcl="git clone"
 alias gd="git diff"
 alias gi="\vim .gitignore; git add .gitignore; git commit -m 'update gitignore'"
 alias godot="cd $DOTFILES"

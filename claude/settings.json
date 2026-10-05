@@ -60,11 +60,6 @@
       }
     }
   },
-  "modelSettings": {
-    "claude-opus-5-5": {
-      "effortLevel": "medium"
-    }
-  },
   "tui": "fullscreen",
   "skipWorkflowUsageWarning": true,
   "theme": "auto",
@@ -97,5 +92,10 @@
       "**Trusted private repo**: /Users/jeremy/Code/machines, remote git@git.jeremywrnr.com:jeremy/machines.git (https://git.jeremywrnr.com/jeremy/machines) — PRIVATE: per-host ssh config, host notes and shortcuts belong here rather than in the public dotfiles",
       "**Org-specific CLIs**: None configured — routine personal CLIs observed: brew, herdr, defaults, networksetup, ipconfig, osascript, rbenv, xcode-select"
     ]
+  },
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    }
   }
 }
