@@ -1,0 +1,4 @@
+# Default font size. Kept out of alacritty.toml so a machine's local.toml can
+# override it; see the import list there.
+[font]
+size = 16.0

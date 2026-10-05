@@ -2,11 +2,18 @@
 # appearance; alacritty live-reloads when it changes. Values set here in
 # alacritty.toml win over the import, so anything the theme owns — colors,
 # decorations_theme_variant — must not also be set below.
+#
+# Imports merge in order, later ones winning, and this file wins over all of
+# them. So the font size lives in font.toml rather than below, where local.toml
+# -- an optional per-machine file, linked in from ~/Code/machines when that
+# repo has one for this host -- can still override it. A missing import is
+# skipped, not an error.
 [general]
-import = ["~/.config/alacritty/theme.toml"]
-
-[font]
-size = 16.0
+import = [
+  "~/.config/alacritty/theme.toml",
+  "~/.config/alacritty/font.toml",
+  "~/.config/alacritty/local.toml",
+]
 
 [font.normal]
 family = "JetBrainsMono Nerd Font Mono"

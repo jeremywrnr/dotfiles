@@ -179,6 +179,7 @@ fi
 echo ""
 echo "Alacritty:"
 link alacritty/alacritty.toml .config/alacritty/alacritty.toml
+link alacritty/font.toml      .config/alacritty/font.toml
 
 # theme.toml is a copy, not a symlink — theme-sync.sh rewrites it in place and
 # alacritty's file watcher would miss a symlink swap.
@@ -186,8 +187,8 @@ link alacritty/alacritty.toml .config/alacritty/alacritty.toml
 # launchd and ~/Library exist only on macOS, and this script runs under `set -e`,
 # so the plist write would abort the rest of the install on Linux. theme-sync.sh
 # is macOS-only too (it reads AppleInterfaceStyle via `defaults`), so seed
-# theme.toml once on Linux instead -- alacritty.toml imports it unconditionally
-# and errors out on a missing import.
+# theme.toml once on Linux instead -- alacritty skips a missing import, which
+# would leave it on its built-in colors.
 if [ -n "$IS_MACOS" ]; then
   # theme-sync.sh follows AppleInterfaceStyle, which only changes under
   # Appearance > Auto -- a pinned Light or Dark leaves it tracking nothing. Set
