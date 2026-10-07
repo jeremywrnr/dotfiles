@@ -38,3 +38,17 @@ key = "Return"
 mods = "Shift"
 chars = "\u001b[13;2u"
 
+# Cmd-C / Cmd-V everywhere: Alacritty calls Cmd "Super", so on macOS these are
+# its defaults restated, and on Linux they add the Mac chord beside
+# Ctrl+Shift+C/V. Paste is text only -- an image still goes into Claude Code
+# with Ctrl+V, which reads the clipboard itself.
+[[keyboard.bindings]]
+key = "C"
+mods = "Super"
+action = "Copy"
+
+[[keyboard.bindings]]
+key = "V"
+mods = "Super"
+action = "Paste"
+

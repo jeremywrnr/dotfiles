@@ -13,6 +13,9 @@
 # select and already saves to ~/Pictures/Screenshots and copies to the
 # clipboard, so only the key needs moving. Ubuntu Dock claims that chord for
 # "new window of the 4th dock app", so it gets released first.
+#
+# Super+V is Mac's Cmd-V, which alacritty.toml binds to paste. GNOME shell grabs
+# it first for the notification list, so that keeps only its Super+M binding.
 set -euo pipefail
 
 CHANGED=0
@@ -34,7 +37,8 @@ pin org.gnome.settings-daemon.plugins.power  idle-dim    false
 pin org.gnome.desktop.session                idle-delay  "uint32 0"
 pin org.gnome.shell.extensions.dash-to-dock  app-shift-hotkey-4 "@as []"
 pin org.gnome.shell.keybindings              show-screenshot-ui "['<Shift><Super>4', '<Shift><Control>4']"
+pin org.gnome.shell.keybindings              toggle-message-tray "['<Super>m']"
 
 STATUS=ok
 [ "$CHANGED" = 1 ] && STATUS=set
-echo "  $STATUS: caps lock as control, no idle dim or blank, Super+Shift+4 screenshots"
+echo "  $STATUS: caps lock as control, no idle dim or blank, Super+Shift+4 screenshots, Super+V free"
