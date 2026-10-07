@@ -8,6 +8,11 @@
 # worse than the power it saves. idle-delay 0 means the idle timer never fires,
 # so the screensaver lock never triggers either -- lock on Super+L and lock on
 # resume from suspend still work.
+#
+# Super+Shift+4 is Mac's Cmd-Shift-4. GNOME's screenshot UI opens on area
+# select and already saves to ~/Pictures/Screenshots and copies to the
+# clipboard, so only the key needs moving. Ubuntu Dock claims that chord for
+# "new window of the 4th dock app", so it gets released first.
 set -euo pipefail
 
 CHANGED=0
@@ -27,7 +32,9 @@ pin() {  # $1: schema. $2: key. $3: value, as `gsettings get` prints it back.
 pin org.gnome.desktop.input-sources          xkb-options "['caps:ctrl_modifier']"
 pin org.gnome.settings-daemon.plugins.power  idle-dim    false
 pin org.gnome.desktop.session                idle-delay  "uint32 0"
+pin org.gnome.shell.extensions.dash-to-dock  app-shift-hotkey-4 "@as []"
+pin org.gnome.shell.keybindings              show-screenshot-ui "['<Shift><Super>4', '<Shift><Control>4']"
 
 STATUS=ok
 [ "$CHANGED" = 1 ] && STATUS=set
-echo "  $STATUS: caps lock as control, no idle dim or blank"
+echo "  $STATUS: caps lock as control, no idle dim or blank, Super+Shift+4 screenshots"

@@ -36,8 +36,10 @@ than in per-machine branches, so the same commit works on every machine.
 Everything that only applies to this machine lives in `linux/`, so the rest of
 the repo stays platform-neutral and merges cleanly with `main`.
 
-- `linux/gnome-settings.sh` — run by `install.sh`; maps Caps Lock to Control
-  and stops the screen dimming or blanking on idle. To undo the first:
+- `linux/gnome-settings.sh` — run by `install.sh`; maps Caps Lock to Control,
+  stops the screen dimming or blanking on idle, and puts GNOME's area
+  screenshot (saved to `~/Pictures/Screenshots` and copied to the clipboard)
+  on Super+Shift+4, like Cmd-Shift-4 on a Mac. To undo the first:
 
       gsettings reset org.gnome.desktop.input-sources xkb-options
 
