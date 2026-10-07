@@ -117,6 +117,10 @@ if [ -n "$HAVE_APT" ]; then
   # the i915 perf counters directly: per-engine busy, frequency, RC6 and
   # IMC bandwidth. It needs perf access, hence the setcap below.
   APT_WANT="$APT_WANT btop intel-gpu-tools"
+  # Claude Code pastes a clipboard image by shelling out to xclip (X11) or
+  # wl-paste (Wayland). Without them a screenshot sits on the clipboard and
+  # every GUI app can paste it, but the terminal cannot.
+  APT_WANT="$APT_WANT xclip wl-clipboard"
   APT_MISSING=""
   for p in $APT_WANT; do
     dpkg -s "$p" &>/dev/null || APT_MISSING="$APT_MISSING $p"
