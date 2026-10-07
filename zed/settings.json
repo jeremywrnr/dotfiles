@@ -1,4 +1,12 @@
 {
+  "telemetry": {
+    "diagnostics": true,
+    "metrics": false,
+    "anthropic_retention": false
+  },
+  "session": {
+    "trust_all_worktrees": true
+  },
   "agent_servers": {
     "claude-acp": {
       "default_config_options": {
