@@ -183,7 +183,12 @@ fi
 echo ""
 echo "Alacritty:"
 link alacritty/alacritty.toml .config/alacritty/alacritty.toml
-link alacritty/font.toml      .config/alacritty/font.toml
+# Macs get a larger default size than Linux; see font-macos.toml.
+if [ -n "$IS_MACOS" ]; then
+  link alacritty/font-macos.toml .config/alacritty/font.toml
+else
+  link alacritty/font.toml       .config/alacritty/font.toml
+fi
 
 # theme.toml is a copy, not a symlink — theme-sync.sh rewrites it in place and
 # alacritty's file watcher would miss a symlink swap.

@@ -1,0 +1,5 @@
+# macOS font size, linked in as font.toml in place of the default one. Point
+# sizes don't render the same on a Mac as on a Linux desktop, so it gets its
+# own size; local.toml can still override it per machine.
+[font]
+size = 14.0
