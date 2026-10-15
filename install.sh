@@ -721,6 +721,79 @@ else
 fi
 
 echo ""
+echo "Desktop apps:"
+# Ubuntu ships these as snaps, which start slowly and each keep two loop
+# mounts. Firefox and Steam come from apt instead, Discord and Spotify from
+# Flathub. Desktop only: gsettings stands in for "has a GUI session", the same
+# test the GNOME block uses, and WSL is left out because it has neither.
+# Ubuntu's own `firefox` deb is a stub that installs the snap, so Mozilla's
+# repo is pinned above it.
+if [ -z "$IS_MACOS" ] && [ -z "$IS_WSL" ] && [ -n "$HAVE_APT" ] && command -v gsettings &>/dev/null; then
+  # A snap still installed means its data has not moved yet. Removing it here
+  # would delete ~/snap/<name> (Steam keeps the whole game library there), so
+  # say what to move and leave the switch to a person.
+  DESK_SNAPS=""
+  if command -v snap &>/dev/null; then
+    for s in firefox steam discord spotify; do
+      snap list "$s" &>/dev/null && DESK_SNAPS="$DESK_SNAPS $s"
+    done
+  fi
+  if [ -n "$DESK_SNAPS" ]; then
+    echo "  WARNING: still snaps:$DESK_SNAPS -- move their data, then remove them:"
+    echo "    cp -a ~/snap/firefox/common/.mozilla/firefox/. ~/.mozilla/firefox/"
+    echo "    mv ~/snap/steam/common/.local/share/Steam ~/.local/share/Steam"
+    echo "    sudo snap remove --purge$DESK_SNAPS && ./install.sh"
+  else
+    MOZ_LIST=/etc/apt/sources.list.d/mozilla.list
+    if [ -f "$MOZ_LIST" ]; then
+      echo "  ok: mozilla apt repo"
+    else
+      sudo install -d -m 0755 /etc/apt/keyrings
+      curl -fsSL https://packages.mozilla.org/apt/repo-signing-key.gpg \
+        | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+      echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
+        | sudo tee "$MOZ_LIST" > /dev/null
+      printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
+        | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
+      # Another repo failing to refresh must not stop the install below.
+      sudo apt-get update -qq || true
+      echo "  installed: mozilla apt repo"
+    fi
+    # The stub's version string contains "snap"; Mozilla's does not.
+    if dpkg-query -W -f='${Version}' firefox 2>/dev/null | grep -qv snap; then
+      echo "  ok: firefox (deb)"
+    else
+      # The stub's epoch (1:1snap1) outranks Mozilla's version, so apt counts
+      # the switch as a downgrade and refuses it under -y without this flag.
+      apt_install --allow-downgrades firefox || echo "  WARNING: apt install firefox failed"
+    fi
+    if dpkg -s steam-installer &>/dev/null || dpkg -s steam-launcher &>/dev/null; then
+      echo "  ok: steam (deb)"
+    else
+      # Steam is 32-bit; steam-installer pulls the i386 libraries once the
+      # architecture is enabled.
+      dpkg --print-foreign-architectures | grep -qx i386 || sudo dpkg --add-architecture i386 || true
+      apt_install steam-installer || echo "  WARNING: apt install steam-installer failed"
+    fi
+    if command -v flatpak &>/dev/null; then
+      flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
+      for app in com.discordapp.Discord com.spotify.Client; do
+        if flatpak info "$app" &>/dev/null; then
+          echo "  ok: $app (flatpak)"
+        else
+          flatpak install --user -y --noninteractive flathub "$app" >/dev/null \
+            && echo "  installed: $app (flatpak)" || echo "  WARNING: flatpak install $app failed"
+        fi
+      done
+    else
+      echo "  WARNING: no flatpak, skipped Discord and Spotify (sudo apt-get install flatpak)"
+    fi
+  fi
+else
+  echo "  skipped (Linux desktop with apt only)"
+fi
+
+echo ""
 echo "Ruby:"
 # apt ships rbenv 1.1.2 and a ruby-build from 2022, which cannot install any
 # current ruby -- so on Linux rbenv comes from git. macOS gets it from the
