@@ -34,3 +34,7 @@ for _zmod in "$DOTFILES"/zsh/*.zsh(N); do source "$_zmod"; done
 # Private per-host config (ssh hosts, shortcuts), when checked out beside this.
 for _zmod in "$CODEPATH"/machines/zsh/*.zsh(N); do source "$_zmod"; done
 unset _zmod
+
+# Booker completion
+fpath=(~/.zsh/completion $fpath)
+autoload -Uz compinit && compinit
