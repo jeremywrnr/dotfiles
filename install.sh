@@ -924,6 +924,91 @@ else
 fi
 
 echo ""
+echo "Docker:"
+# Self-hosted stacks here are all driven by `docker compose`. Ubuntu does
+# package an engine and a compose plugin (docker.io, docker-compose-v2), but
+# both trail upstream by enough to matter -- noble is on compose 2.40 against
+# upstream's 5.x -- and neither pulls in buildx, which `build:` needs. Docker's
+# own apt repo carries engine, buildx and compose together at the versions a
+# compose file is written against. Linux with apt only: on macOS the engine
+# needs a VM (Docker Desktop or colima, neither of which belongs in a Brewfile
+# that installs unattended), and under WSL the socket comes from Windows.
+if [ -z "$IS_MACOS" ] && [ -z "$IS_WSL" ] && [ -n "$HAVE_APT" ]; then
+  # Docker publishes a separate suite per distro, and the path below is
+  # Ubuntu's; Debian or Mint would need their own, so do not guess.
+  DOCKER_ID=$(. /etc/os-release 2>/dev/null && echo "$ID")
+  DOCKER_CODENAME=$(. /etc/os-release 2>/dev/null && echo "$VERSION_CODENAME")
+  # Ubuntu's docker.io and Docker's docker-ce ship the same binaries from
+  # different trees, so apt refuses to hold both and docker-ce's install fails
+  # while they are there. Removing them would stop the engine under anything
+  # already running (and take podman-docker's socket shim with it), so name
+  # them and leave the switch to a person.
+  DOCKER_OLD=""
+  for p in docker.io docker-compose docker-compose-v2 docker-doc podman-docker containerd runc; do
+    dpkg -s "$p" &>/dev/null && DOCKER_OLD="$DOCKER_OLD $p"
+  done
+  if [ "$DOCKER_ID" != ubuntu ]; then
+    echo "  skipped (Ubuntu only; Docker's apt suite is per-distro)"
+  elif [ -n "$DOCKER_OLD" ]; then
+    echo "  WARNING: distro docker packages present:$DOCKER_OLD"
+    echo "    sudo apt-get remove -y$DOCKER_OLD && ./install.sh"
+  else
+    DOCKER_LIST=/etc/apt/sources.list.d/docker.list
+    if [ -f "$DOCKER_LIST" ]; then
+      echo "  ok: docker apt repo"
+    else
+      sudo install -d -m 0755 /etc/apt/keyrings
+      # Served armored, so it is stored as .asc and used as-is, no dearmor.
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | sudo tee /etc/apt/keyrings/download.docker.com.asc > /dev/null
+      sudo chmod a+r /etc/apt/keyrings/download.docker.com.asc
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/download.docker.com.asc] https://download.docker.com/linux/ubuntu $DOCKER_CODENAME stable" \
+        | sudo tee "$DOCKER_LIST" > /dev/null
+      # Another repo failing to refresh must not stop the install below.
+      sudo apt-get update -qq || true
+      echo "  installed: docker apt repo"
+    fi
+    DOCKER_WANT="docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+    DOCKER_MISSING=""
+    for p in $DOCKER_WANT; do
+      dpkg -s "$p" &>/dev/null || DOCKER_MISSING="$DOCKER_MISSING $p"
+    done
+    if [ -n "$DOCKER_MISSING" ]; then
+      echo "  installing:$DOCKER_MISSING"
+      apt_install $DOCKER_MISSING || echo "  WARNING: apt install failed"
+    else
+      echo "  ok: $DOCKER_WANT"
+    fi
+    # The deb's postinst enables and starts the unit, but a chroot or an
+    # image build runs it under a policy-rc.d that silently blocks the start.
+    if command -v systemctl &>/dev/null && dpkg -s docker-ce &>/dev/null; then
+      systemctl is-enabled --quiet docker 2>/dev/null \
+        || sudo systemctl enable --now docker \
+        || echo "  WARNING: could not enable docker.service"
+    fi
+    # The socket is root:docker, so without membership every command needs
+    # sudo -- and a compose file that bind-mounts ./data then fills it with
+    # root-owned files. Checked against the group file, not `id`, so a rerun
+    # before the next login does not add it again.
+    if ! getent group docker > /dev/null; then
+      echo "  WARNING: no docker group, leaving socket access alone"
+    else
+      if getent group docker | cut -d: -f4 | tr ',' '\n' | grep -qx "$USER"; then
+        echo "  ok: $USER in docker group"
+      else
+        sudo usermod -aG docker "$USER" && echo "  added: $USER to the docker group"
+      fi
+      # A separate question: usermod has written the group, but a session's
+      # groups are fixed at login, so this shell still cannot reach the socket.
+      id -nG | tr ' ' '\n' | grep -qx docker \
+        || echo "  NOTE: log out and back in for it, or in one shell: newgrp docker"
+    fi
+  fi
+else
+  echo "  skipped (Linux with apt only)"
+fi
+
+echo ""
 echo "Ruby:"
 # apt ships rbenv 1.1.2 and a ruby-build from 2022, which cannot install any
 # current ruby -- so on Linux rbenv comes from git. macOS gets it from the
