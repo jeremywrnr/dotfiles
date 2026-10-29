@@ -8,6 +8,7 @@ typeset -U path PATH
 export EDITOR="vim"
 export LANG=en_US.UTF-8
 export MANPATH="/usr/local/man:$MANPATH"
+export TTY                     # so Claude Code hooks can address this terminal
 
 export PATH="/usr/local/bin:$PATH"
 
