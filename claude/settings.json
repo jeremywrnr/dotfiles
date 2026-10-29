@@ -1,5 +1,6 @@
 {
   "includeCoAuthoredBy": false,
+  "model": "opus",
   "hooks": {
     "Notification": [
       {
@@ -82,18 +83,31 @@
       }
     }
   },
+  "feedbackDrafts": "off",
   "spinnerVerbs": {
     "mode": "replace",
-    "verbs": ["Processing"]
+    "verbs": [
+      "Processing"
+    ]
   },
   "modelSettings": {
     "claude-opus-5-5": {
+      "effortLevel": "high"
+    },
+    "claude-fable-5": {
       "effortLevel": "medium"
+    },
+    "claude-sonnet-4-6": {
+      "effortLevel": "xhigh"
+    },
+    "claude-opus-4-6": {
+      "effortLevel": "xhigh"
     }
   },
   "tui": "fullscreen",
   "skipWorkflowUsageWarning": true,
   "theme": "auto",
+  "switchModelsOnFlag": true,
   "agentPushNotifEnabled": true,
   "autoMode": {
     "environment": [
@@ -123,6 +137,5 @@
       "**Trusted private repo**: /Users/jeremy/Code/machines, remote git@git.jeremywrnr.com:jeremy/machines.git (https://git.jeremywrnr.com/jeremy/machines) — PRIVATE: per-host ssh config, host notes and shortcuts belong here rather than in the public dotfiles",
       "**Org-specific CLIs**: None configured — routine personal CLIs observed: brew, herdr, defaults, networksetup, ipconfig, osascript, rbenv, xcode-select"
     ]
-  },
-  "feedbackDrafts": "off"
+  }
 }

@@ -2,6 +2,7 @@
 
 alias acp="git acp"
 alias rg="nocorrect rg"
+alias ssh="nocorrect ssh"
 alias bx="bundle exec"
 alias c="zed ."
 alias fw='nocorrect fw'
