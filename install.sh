@@ -130,6 +130,8 @@ if [ -n "$HAVE_APT" ]; then
   APT_WANT="ffmpeg imagemagick librsvg2-bin libimage-exiftool-perl rdfind libheif-examples tree iperf3"
   # bfs is the parallel find that bin/git-exec prefers for finding repos.
   APT_WANT="$APT_WANT bfs"
+  # A fallback multiplexer for boxes without herdr; tmux.conf is linked below.
+  APT_WANT="$APT_WANT tmux"
   # rbenv compiles ruby from source, so these are its build dependencies.
   APT_WANT="$APT_WANT autoconf patch libssl-dev libyaml-dev libreadline-dev libffi-dev libgmp-dev libncurses-dev libdb-dev uuid-dev"
   # Stand-ins for macOS `mo status`: btop covers CPU, memory, disk and
@@ -203,6 +205,10 @@ if [ -d "$DOTFILES/bin" ]; then
     -exec chmod +x {} + 2>/dev/null || true
   echo "  ok: $(find "$DOTFILES/bin" -maxdepth 1 -type f ! -name '*.md' | wc -l | tr -d ' ') scripts on PATH"
 fi
+
+echo ""
+echo "Tmux:"
+link tmux.conf    .tmux.conf
 
 echo ""
 echo "Alacritty:"

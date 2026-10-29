@@ -56,6 +56,9 @@ brew "yt-dlp"
 # open enough for the license terms brew requires). unar reads rar all the same.
 brew "unar"
 
+# terminal
+brew "tmux"
+
 # misc
 # duti reads the live LaunchServices database, which is how the VLC block in
 # install.sh checks which video types actually point at VLC -- it writes them
