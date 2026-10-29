@@ -1,5 +1,30 @@
 # Functions.
 
+# --- shell ------------------------------------------------------------------
+
+# Auto-rehash + retry once when a command isn't found, so freshly-installed
+# binaries (e.g. a new `zed` shim in /usr/local/bin) work without a new shell.
+command_not_found_handler() {
+    hash -r
+    if whence -p "$1" >/dev/null 2>&1; then
+        "$@"
+        return $?
+    fi
+    print -u2 "zsh: command not found: $1"
+    return 127
+}
+
+# --- git --------------------------------------------------------------------
+
+# Never fail a checkout because a sibling worktree holds the branch. There is no
+# checkout.* config for this, and git ignores aliases shadowing built-ins.
+git() {
+    case $1 in
+        co|checkout|sw|switch) command git "$1" --ignore-other-worktrees "${@:2}" ;;
+        *) command git "$@" ;;
+    esac
+}
+
 # --- files ----------------------------------------------------------------
 
 # Delete the droppings: .DS_Store and Icon? from macOS, vim swap files.
@@ -60,6 +85,18 @@ ssl-status() {
 # Run a command in every git repo below the cwd:  git-each 'git status -s'
 # Both names reach the same script: `git exec ...` finds bin/git-exec on PATH.
 git-each() { git exec "$@" }
+
+# --- remote ---------------------------------------------------------------
+
+# Block until an ssh host answers again, e.g. after rebooting it:
+#   ssh -t <host> 'sudo reboot'; waitssh <host> && herdr --remote <host>
+waitssh() {
+    (( $# == 1 )) || { print -u2 "usage: waitssh <ssh-host>"; return 1 }
+    until ssh -o ConnectTimeout=3 -o BatchMode=yes "$1" true 2>/dev/null; do
+        sleep 5
+    done
+    print "$1 is up"
+}
 
 # --- dotfiles -------------------------------------------------------------
 

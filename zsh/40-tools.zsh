@@ -7,6 +7,7 @@
   export PATH="$HOME/.local/share/fnm/aliases/default/bin:$PATH"
 
 (( $+commands[zoxide] )) && eval "$(zoxide init zsh)"
+(( $+commands[just] )) && eval "$(just --completions zsh)"
 
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 [ -f "$HOME/.fzf.zsh" ] && source "$HOME/.fzf.zsh"
