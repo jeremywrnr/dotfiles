@@ -43,13 +43,28 @@ link() {
   echo "  linked: $dst"
 }
 
+# Run a step that is allowed to fail. This script runs under `set -e`, so any
+# unguarded command that exits nonzero aborts the whole install and silently
+# skips every section below it -- a network blip or an unreachable tap should
+# not cost you your symlinks.
+optional() {
+  local label="$1"; shift
+  "$@" || echo "  WARNING: $label failed (continuing)"
+}
+
 # Render a launchd plist into ~/Library/LaunchAgents and (re)start it. Agents
 # are addressed as gui/$UID so they run in the login session, not gui/0.
 # __HOME__ is stamped in too, for the WatchPaths and friends that take a literal
 # path and get no ~ expansion from launchd.
 # $1: plist in the repo. $2: what it does, for the log line.
+#
+# Returns nonzero rather than aborting when bootstrap fails: macOS gates
+# LaunchAgents behind Login Items approval and until that is granted bootstrap
+# fails with EIO, which under `set -e` would take the rest of the install with
+# it. Every caller guards accordingly. launchd's own error is reported, since
+# EIO is the approval gate but a malformed plist lands here too.
 load_agent() {
-  local agent plist
+  local agent plist err
   agent=$(basename "$1" .plist)
   plist="$HOME/Library/LaunchAgents/$agent.plist"
   # A Mac only grows ~/Library/LaunchAgents once something installs an agent, so
@@ -58,8 +73,14 @@ load_agent() {
   mkdir -p "$(dirname "$plist")"
   sed -e "s|__DOTFILES__|$DOTFILES|g" -e "s|__HOME__|$HOME|g" "$1" >"$plist"
   launchctl bootout "gui/$UID/$agent" 2>/dev/null || true
-  launchctl bootstrap "gui/$UID" "$plist"
-  echo "  loaded: $agent ($2)"
+  if err="$(launchctl bootstrap "gui/$UID" "$plist" 2>&1)"; then
+    echo "  loaded: $agent ($2)"
+    return 0
+  fi
+  echo "  WARNING: could not load $agent -- ${err%%$'\n'*}"
+  echo "           approve it under System Settings > General >"
+  echo "           Login Items & Extensions, then re-run install.sh"
+  return 1
 }
 
 echo "Installing dotfiles from $DOTFILES"
@@ -214,8 +235,12 @@ if [ -n "$IS_MACOS" ]; then
     killall SystemUIServer 2>/dev/null || true
     echo "  set: appearance to Auto (was pinned)"
   fi
+  # theme.toml has to exist either way -- alacritty.toml imports it
+  # unconditionally and errors out on a missing import -- so sync it once by
+  # hand when the agent could not be loaded to do it.
   load_agent "$DOTFILES/alacritty/com.jeremy.alacritty-theme.plist" \
-    "light/dark follows macOS appearance"
+    "light/dark follows macOS appearance" \
+    || optional "theme-sync" "$DOTFILES/alacritty/theme-sync.sh"
 else
   THEME="$HOME/.config/alacritty/theme.toml"
   if [ -e "$THEME" ]; then
@@ -307,7 +332,7 @@ echo "Screenshots:"
 if [ -n "$IS_MACOS" ]; then
   "$DOTFILES/screenshot/screenshot-defaults.sh"
   load_agent "$DOTFILES/screenshot/com.jeremy.screenshot-clip.plist" \
-    "new screenshots also land on the clipboard"
+    "new screenshots also land on the clipboard" || true
 else
   echo "  skipped (macOS only)"
 fi
