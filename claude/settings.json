@@ -60,6 +60,10 @@
       }
     }
   },
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": ["Processing"]
+  },
   "modelSettings": {
     "claude-opus-5-5": {
       "effortLevel": "medium"
