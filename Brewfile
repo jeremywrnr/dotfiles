@@ -91,6 +91,8 @@ cask "font-meslo-lg-nerd-font"
 cask "font-jetbrains-mono-nerd-font"
 cask "vlc"
 cask "zed"
+# karabiner/karabiner.json is what install.sh copies into place for it.
+cask "karabiner-elements"
 # f.lux. The cask was renamed from "flux", which brew still redirects to this.
 cask "flux-app"
 

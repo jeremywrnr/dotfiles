@@ -438,6 +438,64 @@ echo "Zed:"
 link zed/settings.json .config/zed/settings.json
 
 echo ""
+echo "Karabiner:"
+# Copied, not symlinked. Karabiner rewrites karabiner.json whenever anything
+# changes in its UI, and it saves by writing a temp file and renaming it over
+# the target — which replaces a symlink with a regular file and silently
+# detaches it from the repo. So the copy goes one way, and a UI change here has
+# to be copied back by hand, minus the per-mouse entries added below:
+#
+#   jq '.profiles[0].devices |= map(select(.identifiers.is_pointing_device | not))' \
+#     ~/.config/karabiner/karabiner.json >"$DOTFILES/karabiner/karabiner.json"
+#
+# Mouse side buttons are the reason this is tracked. Karabiner ignores every
+# pointing device until it has a `devices` entry naming its exact vendor and
+# product ID; a bare `{"is_pointing_device": true}` matches nothing. So rather
+# than list mice in the repo, each run adds an `ignore: false` entry for every
+# external mouse connected now, and keeps the ones the live file already has
+# so a mouse adopted once survives being unplugged. A mouse first plugged in
+# later needs another run. Apple pointing devices and the built-in trackpad
+# are never adopted: a grabbed pointer is re-emitted through Karabiner's
+# virtual HID device, which has no multitouch, so grabbing a trackpad kills
+# gestures and momentum scroll.
+if [ -n "$IS_MACOS" ]; then
+  KB_LIVE="$HOME/.config/karabiner/karabiner.json"
+  KB_REPO="$DOTFILES/karabiner/karabiner.json"
+  kb_tmp="$(mktemp)"
+  cp "$KB_REPO" "$kb_tmp"
+  if command -v jq &>/dev/null && command -v hidutil &>/dev/null; then
+    # 0 is the built-in trackpad, 76 and 1452 are Apple's Bluetooth and USB
+    # vendor IDs, and 5824 is Karabiner's own virtual pointer.
+    kb_mice="$({
+      [ -f "$KB_LIVE" ] && jq -c '.profiles[0].devices[]?
+        | select(.identifiers.is_pointing_device and .ignore == false and .identifiers.vendor_id)
+        | .identifiers | {vendor_id, product_id}' "$KB_LIVE"
+      hidutil list --ndjson --matching mouse | jq -c '
+        select(.type == "device" and .VendorID and (.["Built-In"] | not))
+        | select(.VendorID as $v | [0, 76, 1452, 5824] | index($v) | not)
+        | {vendor_id: .VendorID, product_id: .ProductID}'
+    } | jq -s 'unique')"
+    jq --argjson mice "$kb_mice" '.profiles[0].devices =
+      [$mice[] | {identifiers: ({is_pointing_device: true} + .), ignore: false}]
+      + .profiles[0].devices' "$KB_REPO" >"$kb_tmp" || cp "$KB_REPO" "$kb_tmp"
+  fi
+  if cmp -s "$kb_tmp" "$KB_LIVE"; then
+    echo "  ok: $KB_LIVE"
+  else
+    mkdir -p "$(dirname "$KB_LIVE")"
+    if [ -e "$KB_LIVE" ] && [ ! -e "$KB_LIVE.bak" ]; then
+      cp "$KB_LIVE" "$KB_LIVE.bak"
+      echo "  backup: $KB_LIVE → $KB_LIVE.bak"
+    fi
+    cp "$kb_tmp" "$KB_LIVE"
+    echo "  copied: $KB_LIVE"
+  fi
+  rm -f "$kb_tmp"
+else
+  echo "  skipped (macOS only)"
+fi
+
+echo ""
 echo "MIME associations:"
 # XDG associations and .desktop launchers. macOS resolves file types through
 # LaunchServices and reads none of this, so linking it there would only leave

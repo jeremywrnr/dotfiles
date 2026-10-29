@@ -27,6 +27,9 @@ upgrades go through `brewup`, which only takes prebuilt bottles.
 - `zsh/` — `00-path`, `10-linux` / `10-darwin`, `20-aliases`, `30-functions`, `35-herdr`, `40-tools`
 - `bin/` — standalone scripts, on `$PATH` (see `bin/readme.md`)
 - `vim/`, `zed/`, `alacritty/`, `tmux.conf` — per-tool config
+- `karabiner/` — copied into place, not symlinked; Karabiner rewrites the file
+  from its UI, so changes made there get copied back by hand. `install.sh` adds
+  an entry for each connected non-Apple mouse so its side buttons work
 - under WSL, `install.sh` merges `alacritty/dark.toml` into Windows Terminal's
   settings.json as a color scheme (merged, not linked: the terminal rewrites it)
 - `screenshot/` — `install.sh` pins the capture location, format and thumbnail;
