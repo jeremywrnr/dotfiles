@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Screen-share a Mac over ssh: tunnel its VNC port (5900) to a free local port
+# and open Screen Sharing on it. One command, one lifetime -- closing the
+# session window ends the tunnel, and Ctrl-C ends both.
+#
+#   screenshare <host>              # connect, auto-filling stored credentials
+#   screenshare <host> --set-login  # (re)store username + password, then connect
+#
+# Credentials live in the login Keychain (service "screenshare", one item per
+# host). The VNC port is random each run, so Screen Sharing's own host:port
+# Keychain entries never match -- we inject user:pass into the vnc:// URL instead.
+#
+# The remote needs System Settings > General > Sharing > Screen Sharing on.
+set -euo pipefail
+
+set_login=
+if [[ ${2:-} == --set-login ]]; then set_login=1; fi
+host=${1:?usage: screenshare <ssh-host> [--set-login]}
+
+service=screenshare
+
+# Username defaults to whatever ssh resolves for this host; a stored one wins.
+ssh_user=$(ssh -G "$host" 2>/dev/null | awk '/^user /{print $2; exit}')
+user=$(security find-generic-password -s "$service-user" -a "$host" -w 2>/dev/null || true)
+
+if [[ -n $set_login || -z $(security find-generic-password -s "$service" -a "$host" -w 2>/dev/null || true) ]]; then
+    read -rp "VNC username for $host [${user:-${ssh_user:-$USER}}]: " input_user
+    user=${input_user:-${user:-${ssh_user:-$USER}}}
+    read -rsp "VNC password for $host: " password; echo
+    security add-generic-password -U -s "$service-user" -a "$host" -w "$user"
+    security add-generic-password -U -s "$service" -a "$host" -w "$password"
+fi
+
+user=${user:-${ssh_user:-$USER}}
+password=$(security find-generic-password -s "$service" -a "$host" -w)
+creds=$(python3 -c 'import sys,urllib.parse as u; print(u.quote(sys.argv[1],safe="")+":"+u.quote(sys.argv[2],safe=""))' "$user" "$password")
+
+port=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+ssh -o ExitOnForwardFailure=yes -N -L "$port:localhost:5900" "$host" &
+ssh_pid=$!
+trap 'kill "$ssh_pid" 2>/dev/null || true' EXIT
+# Quitting the app closes every Screen Sharing window, not just this host's.
+trap 'osascript -e "quit app \"Screen Sharing\"" 2>/dev/null; exit 130' INT TERM
+
+# Any address, not just 127.0.0.1: ssh also listens on ::1, and Screen Sharing
+# may resolve "localhost" to that instead.
+connected() { lsof -nP -iTCP:"$port" -sTCP:ESTABLISHED >/dev/null 2>&1; }
+
+until nc -z 127.0.0.1 "$port" 2>/dev/null; do
+    kill -0 "$ssh_pid" 2>/dev/null || { echo "screenshare: ssh to $host failed" >&2; exit 1; }
+    sleep 0.2
+done
+open "vnc://$creds@localhost:$port"
+echo "Sharing $host via localhost:$port -- close the window or Ctrl-C to end."
+
+# Wait for Screen Sharing to connect (bail if it never does), then exit as soon
+# as that connection drops -- i.e. the window was closed -- tearing down ssh.
+for _ in $(seq 600); do
+    kill -0 "$ssh_pid" 2>/dev/null || exit 0
+    connected && break
+    sleep 0.2
+done
+while connected; do
+    kill -0 "$ssh_pid" 2>/dev/null || exit 0
+    sleep 0.5
+done
