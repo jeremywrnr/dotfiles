@@ -17,6 +17,8 @@ upgrades go through `brewup`, which only takes prebuilt bottles.
 - `timezsh` to benchmark shell startup
 - herdr panes: `prefix+-` / `prefix+|` split (tmux-style), `prefix+hjkl` to
   move, `prefix+;` for the last pane; `herdr pane split` from the shell
+- `hwt <slug> [base]` opens a worktree of the current repo as its own herdr
+  space, linked to the repo's (under `<repo>/.claude/worktrees/<slug>`)
 
 ## layout
 
