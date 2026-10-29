@@ -971,12 +971,19 @@ fi
 # herdr's Claude Code hook, which is what reports agent state to the sidebar:
 # `herdr integration install claude` writes ~/.claude/hooks/herdr-agent-state.sh
 # and adds the SessionStart entry that runs it. Only when the script is missing,
-# because that command also rewrites settings.json -- a symlink into this repo.
-# The entry's absolute path is kept out of git by the herdrhook filter above.
-if command -v herdr &>/dev/null && [ -L "$HOME/.claude/settings.json" ] &&
-  [ ! -f "$HOME/.claude/hooks/herdr-agent-state.sh" ]; then
-  herdr integration install claude >/dev/null 2>&1 &&
-    echo "  installed: claude agent-state hook"
+# or when `herdr update` has left it behind a newer integration version -- the
+# update only says so, it does not refresh it -- because that command also
+# rewrites settings.json, a symlink into this repo. Reinstalling recognises its
+# own entry and does not append a duplicate, and the entry's absolute path is
+# kept out of git by the herdrhook filter above.
+if command -v herdr &>/dev/null && [ -L "$HOME/.claude/settings.json" ]; then
+  if [ ! -f "$HOME/.claude/hooks/herdr-agent-state.sh" ]; then
+    herdr integration install claude >/dev/null 2>&1 &&
+      echo "  installed: claude agent-state hook"
+  elif herdr integration status 2>/dev/null | grep -q '^claude: outdated'; then
+    herdr integration install claude >/dev/null 2>&1 &&
+      echo "  updated: claude agent-state hook"
+  fi
 fi
 
 echo ""
