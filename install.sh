@@ -339,6 +339,21 @@ else
 fi
 
 echo ""
+echo "sudo timeout:"
+# A sudoers drop-in, which must be root-owned and 0440 or sudo refuses the whole
+# configuration -- so it is installed by hand, not linked, and the command ends
+# in visudo -c to catch a bad file at once. macOS and Debian/Ubuntu both include
+# /etc/sudoers.d by default.
+SUDO_DROPIN=/etc/sudoers.d/timeout
+# -e, not cmp: the installed file is 0440 root, so this user cannot read it back.
+if [ -e "$SUDO_DROPIN" ]; then
+  echo "  ok: $SUDO_DROPIN"
+else
+  echo "  sudo credentials last 5 minutes; for an hour, run:"
+  echo "    sudo install -m 0440 -o root -g $(id -gn root 2>/dev/null || echo wheel) $DOTFILES/sudo/timeout $SUDO_DROPIN && sudo visudo -c"
+fi
+
+echo ""
 echo "Screen Sharing:"
 # Report only, never switched on from here: it opens the Mac to remote control,
 # so that stays a deliberate per-machine choice in System Settings. When on,

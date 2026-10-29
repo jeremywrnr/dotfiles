@@ -1,0 +1,4 @@
+# Cache sudo credentials for an hour instead of the 5-minute default. The
+# default timestamp_type keeps the cache per terminal, so a password typed in
+# one tab does not unlock sudo for anything else running as this user.
+Defaults timestamp_timeout=60
