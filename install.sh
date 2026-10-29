@@ -501,6 +501,27 @@ if [ "$smudged" != "$(cat "$CLAUDE_SETTINGS")" ]; then
   echo "  smudged: herdr hook path in claude/settings.json"
 fi
 
+# `claude agents` groups sessions by state unless told otherwise; ctrl+s cycles
+# it to directory, which files each session under its repo. The choice lives
+# in ~/.claude.json, Claude's own state file rather than settings.json, so the
+# link above can't carry it. Only an unset key is written: a later ctrl+s
+# survives a re-run, and a file Claude rewrites constantly is touched once.
+CC_STATE="$HOME/.claude.json"
+if command -v jq &>/dev/null && [ -f "$CC_STATE" ]; then
+  if jq -e 'has("fleetViewGroupMode")' "$CC_STATE" >/dev/null 2>&1; then
+    echo "  kept: claude agents grouping ($(jq -r .fleetViewGroupMode "$CC_STATE"))"
+  else
+    tmp="$(mktemp "$CC_STATE.XXXXXX")"
+    if jq '.fleetViewGroupMode = "directory"' "$CC_STATE" >"$tmp"; then
+      mv -f "$tmp" "$CC_STATE"
+      echo "  set: claude agents grouping → directory"
+    else
+      rm -f "$tmp"
+      echo "  skipped: $CC_STATE (could not parse, left unchanged)"
+    fi
+  fi
+fi
+
 echo ""
 echo "Misc:"
 link gemrc        .gemrc
