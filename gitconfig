@@ -28,7 +28,7 @@
     lgg = log --pretty=format:'%C(yellow)%h %C(cyan)%ad%Cgreen%d %Creset%s' --date=short
     la = log --graph --decorate --pretty=format:'%C(yellow)%h %Cred%cr %Cblue(%an)%C(white)%d%Creset %s' --abbrev-commit --all
     br = branch
-    co = checkout
+    co = checkout --ignore-other-worktrees
     ps = push
     pl = pull
     up = pull
@@ -37,12 +37,27 @@
     # was util/git-add-commit-push; pushes the current branch, not a hardcoded one.
     # `acp` opens the editor; `acp fix the thing` (quoted or not) commits with that message.
     # With nothing staged it skips the commit and still pushes, so unpushed commits go out.
-    acp = "!f() { git add -A && git status && if git diff --cached --quiet; then :; elif [ $# -gt 0 ]; then git commit -m \"$*\"; else git commit -v; fi && git push origin HEAD; }; f"
+    acp = add-commit-push
+    add-commit-push = "!f() { git add -A && git status && if git diff --cached --quiet; then :; elif [ $# -gt 0 ]; then git commit -m \"$*\"; else git commit -v; fi && git push origin HEAD; }; f"
     # was util/git-historian: interactive rebase back to the root commit
     historian = !git rebase -i $(git rev-list --max-parents=0 HEAD)
-    su = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
-    cob = !git branch --merged main | grep -vE '^[*]|main|master' | xargs -n 1 git branch -d
-    sb = !git reset --soft $(git merge-base main HEAD) && git commit -m squash-onto-main
+    # Fold the working tree into the last commit and re-push it, to kick CI.
+    # --force-with-lease refuses if someone else pushed to the branch meanwhile.
+    retest = !git commit --amend --no-edit && git push --force-with-lease
+    rt = retest
+    su = set-upstream
+    set-upstream = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
+    ro = restore-origin
+    restore-origin = restore --source origin/main
+    # Discards local commits and changes: the branch becomes exactly its upstream.
+    rho = reset-hard-origin
+    reset-hard-origin = !git fetch && git reset --hard '@{upstream}'
+    sb = squash-branch
+    squash-branch = !git reset --soft $(git merge-base main HEAD) && git commit -m squash-onto-main
+    cob = clean-old-branches
+    clear-old-branches = !git clean-old-branches
+    clean-old-branches = !git branch --merged main | grep -vE '^[*]|main|master' | xargs -n 1 git branch -d
+    gwc = diff --stat main...HEAD
 [core]
     excludesfile = ~/.gitignore_global
     editor = vim
