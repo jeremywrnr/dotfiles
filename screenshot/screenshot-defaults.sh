@@ -14,6 +14,13 @@ set -euo pipefail
 SHOTS="$HOME/Pictures/Screenshots"
 mkdir -p "$SHOTS"
 
+# Pinned in tilde form because that is the spelling the capture UI itself
+# writes, and `pin` compares against what `defaults read` gives back: store the
+# absolute path and every later run sees a difference that is not one, rewrites
+# it, and restarts the menu bar for nothing. screenshot-clip.sh expands the
+# tilde when it reads the value back.
+SHOTS_PREF="~/Pictures/Screenshots"
+
 # The capture UI reads these once at launch, so a change only takes hold after
 # it restarts -- and that redraws the menu bar, so only do it if something
 # actually moved.
@@ -30,7 +37,15 @@ pin() {  # $1: key. $2: -string or -bool. $3: value, as `defaults read` prints i
   defaults write com.apple.screencapture "$1" "$2" "$write"
   CHANGED=1
 }
-pin location       -string "$SHOTS"
+# macOS 27 splits the destination per capture type, the way `target` has long
+# been split into target-screenshot and target-screenrecording. A bare
+# `location` is the legacy key: with location-screenshot unset the capture UI
+# ignores it and quietly saves to the Desktop, which looks exactly like the
+# preference not sticking. Screen recordings get the same treatment so they do
+# not end up somewhere else again.
+pin location                 -string "$SHOTS_PREF"
+pin location-screenshot      -string "$SHOTS_PREF"
+pin location-screenrecording -string "$SHOTS_PREF"
 pin type           -string png
 pin target         -string file
 pin show-thumbnail -bool   0

@@ -13,12 +13,15 @@ set -euo pipefail
 # overrides, which is how the edge cases get exercised by hand.
 DIR=${SCREENSHOT_DIR:-}
 if [ -z "$DIR" ]; then
-  # An unset location means screenshot-defaults.sh has never run here, so there
+  # location-screenshot first: it is the key macOS 27 actually captures against,
+  # and a machine that still has only the older bare `location` falls through to
+  # it. An unset pair means screenshot-defaults.sh has never run here, so there
   # is no directory anyone agreed on and nothing to mirror. Note the `|| exit 0`
   # rather than letting the assignment carry the failure: under `set -e` a
   # command substitution that fails takes the whole script with it, status and
   # all, which is a confusing way for launchd to hear "nothing to do".
-  DIR=$(defaults read com.apple.screencapture location 2>/dev/null) || exit 0
+  DIR=$(defaults read com.apple.screencapture location-screenshot 2>/dev/null) ||
+    DIR=$(defaults read com.apple.screencapture location 2>/dev/null) || exit 0
 fi
 DIR=${DIR/#\~/$HOME}
 [ -d "$DIR" ] || exit 0
