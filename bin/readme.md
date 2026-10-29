@@ -13,7 +13,7 @@ adding a file here adds a command — no symlinking, no re-running `install.sh`.
 | `git-open` | open the repo's web remote in a browser (`git open`) |
 | `brewup` | upgrade Homebrew without compiling: bottles and native casks only, each step skipped when there is nothing to do (`--all` for everything); no `brew bundle cleanup` without `../machines/Brewfile` beside the repo |
 | `brew-bottled` | list the outdated Homebrew packages that install prebuilt; what `brewup` upgrades, and with `-v` why the rest are held back |
-| `git-exec` | run a command in every git repo below the cwd, naming each one first (`cd ~/Code && git exec 'pwd && git up'`) |
+| `git-exec` | run a command in every git repo below the cwd, listing them all first and naming each as it runs (`cd ~/Code && git exec 'pwd && git up'`; `git exec -n` to only list); faster with `bfs` installed |
 
 `conv` and `to-mp4` need `ffmpeg` and ImageMagick; `set-media-date` needs
 `exiftool`. Camera raw (`.ARW`, `.CR2`, `.NEF`, ...) goes through `sips` on

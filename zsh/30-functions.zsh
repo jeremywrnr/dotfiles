@@ -57,6 +57,10 @@ ssl-status() {
     done
 }
 
+# Run a command in every git repo below the cwd:  git-each 'git status -s'
+# Both names reach the same script: `git exec ...` finds bin/git-exec on PATH.
+git-each() { git exec "$@" }
+
 # --- dotfiles -------------------------------------------------------------
 
 # Edit this config, commit it, push it, reload it. Pushes HEAD rather than a

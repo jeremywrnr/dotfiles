@@ -1,38 +1,81 @@
 #!/usr/bin/env bash
 #
-# git exec - run a command in every git repo below the current directory.
+# git exec - run a command in every git repo below the cwd.
 #
-# Prints the repo's name before each run, so a wall of output stays readable:
+#   git exec ls -la                     # args are the command, run as-is
+#   git exec git fetch --prune          # global sync
+#   git exec 'git fetch && git cob'     # one quoted arg goes through the shell
+#   git exec -d 1 git status -s         # only the repos one level down
+#   git exec -n                         # list the repos it would visit, run nothing
 #
-#   cd ~/Code && git exec 'pwd && git up'
-#   git exec git fetch --all
+# One argument is a shell command line, so &&, pipes and globs work. Two or
+# more are a command and its arguments, run directly with no shell in between,
+# which keeps quoting intact: `git exec grep -rn 'two words' .`
 #
-# One argument is handed to bash, so pipes, && and globs work. Several
-# arguments are executed directly, which keeps quoting intact:
+# The search shows a live count on a terminal, and the full list of repos is
+# printed before any command runs, so you can see where it is going and ^C
+# before it gets there. Each repo is then announced as [n/total] <path> before
+# its command runs, so a long sync shows where it has got to rather than going
+# quiet.
 #
-#   git exec 'git log --oneline | head -3'   # shell
-#   git exec grep -rn 'two words' .          # no shell, quotes survive
+# Replaces ~/Code/util/git-exec, which went away when util/ was absorbed into
+# this directory. Three changes from that version:
 #
-# Keeps going when a repo fails, then reports which ones did and exits 1.
+#   - It looked for repos with `find . -type d -name .git`, so it silently
+#     skipped every linked worktree: in a worktree .git is a file holding a
+#     gitdir: pointer, not a directory. This matches both.
+#   - It kept going after a repo's command failed but always exited 0. This
+#     still visits every repo, and exits 1 if any of them failed, and names
+#     the failures at the end so they are not lost in the scrollback.
+#   - It walked the whole tree, virtualenvs and caches included; see PRUNE
+#     below.
+#
+# Written for bash 3.2, which is what macOS ships: no mapfile, and an empty
+# array cannot be expanded under `set -u` without the ${a[@]+...} guard.
 #
 # Named git-exec so `git exec` finds it on PATH; no gitconfig alias needed.
-# Replaces the git-each zsh function.
+# The git-each zsh function in ../zsh/30-functions.zsh delegates here.
 
+# No -e: one repo failing must not abandon the rest of the walk.
 set -uo pipefail
 
-depth=1
-while [[ $# -gt 0 ]]; do
+usage() {
+    cat >&2 <<'EOF'
+usage: git exec [-d depth] <command> [args ...]
+       git exec [-d depth] '<shell command line>'
+       git exec [-d depth] -n
+  runs it in every git repo below the cwd, after listing them
+
+  -d, --depth N   only descend N directory levels (default: no limit)
+  -r, --recursive no depth limit (the default; accepted for symmetry)
+  -n, --dry-run   list the repos and stop; no command needed
+  -h, --help      this message
+EOF
+}
+
+depth=""
+dry_run=""
+while [ "$#" -gt 0 ]; do
     case "$1" in
-        -d|--depth) depth="$2"; shift 2 ;;
-        -r|--recursive) depth=99; shift ;;
-        -h|--help) sed -n '3,18p' "$0" | sed 's/^#//; s/^ //'; exit 0 ;;
+        -d|--depth)
+            # Checked here, or a missing value trips `set -u` and a word
+            # reaches the arithmetic below.
+            case "${2-}" in
+                ''|*[!0-9]*) usage; exit 2 ;;
+            esac
+            depth="$2"; shift 2 ;;
+        -r|--recursive) depth=""; shift ;;
+        -n|--dry-run) dry_run=1; shift ;;
+        -h|--help) usage; exit 0 ;;
         --) shift; break ;;
+        # A mistyped flag would otherwise be run as the command in every repo.
+        -*) echo "git exec: unknown option $1" >&2; usage; exit 2 ;;
         *) break ;;
     esac
 done
 
-if [[ $# -eq 0 ]]; then
-    echo 'usage: git exec [-d depth] <command ...>' >&2
+if [ "$#" -eq 0 ] && [ -z "$dry_run" ]; then
+    usage
     exit 1
 fi
 
@@ -40,34 +83,122 @@ fi
 # would talk to the parent repo instead of the one we just stepped into.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 
-if [[ -t 1 ]]; then
-    bold=$'\e[1;34m'; red=$'\e[1;31m'; reset=$'\e[0m'
+# Directories that never hold a repo worth visiting, pruned before the walk
+# descends into them. Virtualenvs dominate: worktrees can carry several
+# .venv-<name> dirs of ~12k directories each, and over ~/Code BSD find takes
+# 5 minutes without these and 22s with them, for the same repos. .archive holds
+# retired clones that a sync should leave alone. Entries are find -name
+# globs. Override with GIT_EXEC_PRUNE='name1 name2', or GIT_EXEC_PRUNE= to walk
+# everything.
+PRUNE="${GIT_EXEC_PRUNE-node_modules __pycache__ .venv* venv site-packages .tox target .mypy_cache .pytest_cache .ruff_cache .archive}"
+
+prune_args=()
+if [ -n "$PRUNE" ]; then
+    # Split on spaces without letting the shell expand .venv* against the cwd.
+    set -f
+    for d in $PRUNE; do
+        [ "${#prune_args[@]}" -gt 0 ] && prune_args+=(-o)
+        prune_args+=(-name "$d")
+    done
+    set +f
 else
-    bold=''; red=''; reset=''
+    # find needs a well-formed expression; this one cannot match a real name.
+    prune_args=(-name '')
 fi
+
+# A repo N directories down has its .git at depth N+1. -maxdepth has to precede
+# the rest of the expression, so it goes straight after the path.
+depth_args=()
+[ -n "$depth" ] && depth_args=(-maxdepth $((depth + 1)))
+
+if [ -t 1 ]; then
+    cyan=$'\033[0;36m'
+    dim=$'\033[0;90m'
+    reset=$'\033[0m'
+else
+    cyan="" dim="" reset=""
+fi
+
+# The live count goes to stderr, and only when that is a terminal, so a piped
+# `git exec -n | wc -l` sees nothing but the list.
+[ -t 2 ] && progress=1 || progress=""
+
+# bfs takes the same expression and walks in parallel. Even with PRUNE, ~/Code
+# is mostly real source trees (dozens of worktrees of one big repo), which BSD
+# find takes ~22s over and bfs ~1.5s. Its default breadth-first order holds
+# every open directory at once and is ~3x slower here than -S dfs. The Brewfile
+# and install.sh install it.
+finder=(find)
+command -v bfs >/dev/null 2>&1 && finder=(bfs -S dfs)
+
+# find's output is read as it arrives rather than through sort, which would
+# hold everything back until the walk ends; sorting happens once it has.
+found=()
+while IFS= read -r line; do
+    found+=("$line")
+    [ -n "$progress" ] && printf '\r\033[K%sscanning... %d repos%s  %s' \
+        "$dim" "${#found[@]}" "$reset" "${line%/.git}" >&2
+done < <("${finder[@]}" . ${depth_args[@]+"${depth_args[@]}"} \
+    \( "${prune_args[@]}" \) -prune -o -name .git -prune -print)
+[ -n "$progress" ] && printf '\r\033[K' >&2
 
 repos=()
-while IFS= read -r dotgit; do
-    repos+=("$(dirname "$dotgit")")
-done < <(find . -mindepth 2 -maxdepth $((depth + 1)) -name .git -prune | sort)
+if [ "${#found[@]}" -gt 0 ]; then
+    while IFS= read -r line; do
+        repos+=("$line")
+    done < <(printf '%s\n' "${found[@]}" | sort)
+fi
 
-if [[ ${#repos[@]} -eq 0 ]]; then
-    echo "git exec: no git repos under $PWD" >&2
+total="${#repos[@]}"
+if [ "$total" -eq 0 ]; then
+    echo "git exec: no git repos below $PWD" >&2
     exit 1
 fi
 
+# The name a repo is shown under, from find's path to its .git.
+label_of() {
+    local label="${1%/.git}"
+    label="${label#./}"
+    # find reports the cwd's own repo as "./.git", which trims to a bare "."
+    [ "$label" = "." ] && label="${PWD##*/}"
+    printf '%s' "$label"
+}
+
+if [ -n "$dry_run" ]; then
+    for dotgit in "${repos[@]}"; do
+        label_of "$dotgit"; echo
+    done
+    printf '%sgit exec: %d repos%s\n' "$dim" "$total" "$reset" >&2
+    exit 0
+fi
+
+printf '%sgit exec: %d repos%s\n' "$dim" "$total" "$reset"
+for dotgit in "${repos[@]}"; do
+    printf '  %s%s%s\n' "$dim" "$(label_of "$dotgit")" "$reset"
+done
+echo
+
+status=0
 failed=()
-for repo in "${repos[@]}"; do
-    echo "${bold}${repo#./}${reset}"
-    if [[ $# -eq 1 ]]; then
-        (cd "$repo" && bash -c "$1")
+n=0
+
+for dotgit in "${repos[@]}"; do
+    repo="${dotgit%/.git}"
+    label="$(label_of "$dotgit")"
+
+    n=$((n + 1))
+    printf '%s[%d/%d]%s %s%s%s\n' "$dim" "$n" "$total" "$reset" "$cyan" "$label" "$reset"
+
+    if [ "$#" -eq 1 ]; then
+        ( cd "$repo" && eval "$1" )
     else
-        (cd "$repo" && "$@")
-    fi || failed+=("${repo#./}")
-    echo
+        ( cd "$repo" && "$@" )
+    fi || { status=1; failed+=("$label"); }
 done
 
-if [[ ${#failed[@]} -gt 0 ]]; then
-    echo "${red}failed:${reset} ${failed[*]}" >&2
-    exit 1
+if [ "${#failed[@]}" -gt 0 ]; then
+    printf '\n%sgit exec: %d of %d failed:%s %s\n' \
+        "$dim" "${#failed[@]}" "$total" "$reset" "${failed[*]}" >&2
 fi
+
+exit "$status"

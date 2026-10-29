@@ -3,6 +3,8 @@ brew "fzf"
 brew "eza"
 brew "zoxide"
 brew "ripgrep"
+# A parallel find; bin/git-exec uses it when present to find repos ~10x faster.
+brew "bfs"
 # What cw() in zsh/30-functions.zsh reaches for first to print a script with
 # syntax highlighting; without it that falls through to plain cat.
 brew "bat"

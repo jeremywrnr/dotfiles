@@ -107,6 +107,8 @@ if [ -n "$HAVE_APT" ]; then
   # heif-convert (libheif-examples) matters because apt's ImageMagick is built
   # without a HEIC delegate, so `conv jpg *.heic` has no backend without it.
   APT_WANT="ffmpeg imagemagick librsvg2-bin libimage-exiftool-perl rdfind libheif-examples tree iperf3"
+  # bfs is the parallel find that bin/git-exec prefers for finding repos.
+  APT_WANT="$APT_WANT bfs"
   # rbenv compiles ruby from source, so these are its build dependencies.
   APT_WANT="$APT_WANT autoconf patch libssl-dev libyaml-dev libreadline-dev libffi-dev libgmp-dev libncurses-dev libdb-dev uuid-dev"
   # Stand-ins for macOS `mo status`: btop covers CPU, memory, disk and
