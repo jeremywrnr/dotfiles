@@ -21,6 +21,7 @@ upgrades go through `brewup`, which only takes prebuilt bottles.
 ## layout
 
 - `zshrc` — a loader; the actual config is `zsh/*.zsh`, sourced in filename order
+- `zprofile` — gives login shells (`zsh -lc`, LaunchAgents) the same PATH
 - `zsh/` — `00-path`, `10-linux` / `10-darwin`, `20-aliases`, `30-functions`, `35-herdr`, `40-tools`
 - `bin/` — standalone scripts, on `$PATH` (see `bin/readme.md`)
 - `vim/`, `zed/`, `alacritty/` — per-tool config

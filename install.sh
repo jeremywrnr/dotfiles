@@ -161,6 +161,7 @@ fi
 
 echo "Shell:"
 link zshrc        .zshrc
+link zprofile     .zprofile
 link bashrc       .bashrc
 
 echo ""
