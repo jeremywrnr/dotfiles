@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# worktree-hook - Claude Code's WorktreeCreate / WorktreeRemove hooks, so the
+# worktrees Claude makes itself (EnterWorktree, `claude -w`, agents with
+# isolation: "worktree") land where hwt puts them and show up in herdr as
+# spaces linked to their repo's space, instead of as loose checkouts.
+#
+#   create: stdin {"name": <slug>, "cwd": ...}; prints the worktree path.
+#   remove: stdin {"worktree_path": ...}
+#
+# The hook replaces Claude's own `git worktree add`, so the git half has to
+# work everywhere: it runs first and is the only part allowed to fail the hook.
+# herdr is best-effort on top, skipped outside a herdr pane. Stdout carries the
+# path and nothing else; everything else goes to stderr or the log.
+
+set -uo pipefail
+
+LOG=$HOME/.claude/worktree-hook.log
+log() { printf '%s %s %s\n' "$(date '+%F %T')" "$mode" "$*" >>"$LOG" 2>/dev/null; }
+die() { log "FAIL $*"; echo "worktree-hook: $*" >&2; exit 1; }
+
+mode=${1:-}
+input=$(cat)
+log "stdin $(jq -c . <<<"$input" 2>/dev/null || echo "$input")"
+
+herdr_ok() { [ -n "${HERDR_ENV:-}" ] && [ -x "${HERDR_BIN_PATH:-}" ]; }
+
+case "$mode" in
+create)
+    name=$(jq -r '.name // empty' <<<"$input")
+    cwd=$(jq -r '.cwd // empty' <<<"$input")
+    [ -n "$name" ] || die "no name in hook input"
+    case "$name" in */* | .* ) die "refusing worktree name '$name'" ;; esac
+
+    # The main clone, even when Claude is already inside one of its worktrees,
+    # so worktrees never nest.
+    common=$(git -C "${cwd:-$PWD}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
+        die "${cwd:-$PWD} is not in a git repository"
+    root=${common%/*}
+    wt=$root/.claude/worktrees/$name
+
+    if [ ! -d "$wt" ]; then
+        # Cut from the remote's default branch, freshly fetched, as hwt does;
+        # fall back to HEAD for a repo with no origin.
+        base=$(git -C "$root" symbolic-ref -q --short refs/remotes/origin/HEAD) || base=HEAD
+        [ "$base" = HEAD ] || git -C "$root" fetch -q origin "${base#origin/}" >&2 2>&1 || true
+        if git -C "$root" show-ref -q --verify "refs/heads/$name"; then
+            git -C "$root" worktree add "$wt" "$name" >&2 2>&1 || die "git worktree add $wt $name failed"
+        else
+            git -C "$root" worktree add -b "$name" "$wt" "$base" >&2 2>&1 || die "git worktree add -b $name failed"
+        fi
+        log "git $wt (base $base)"
+    else
+        log "reuse $wt"
+    fi
+
+    # Linked herdr space, without focus: agents spawn worktrees while you are
+    # looking at something else. The reply is kept in the worktree's admin dir
+    # so remove can close exactly this space later, by id.
+    if herdr_ok; then
+        if reply=$("$HERDR_BIN_PATH" worktree open --cwd "$root" --path "$wt" \
+            --label "${root##*/}-$name" --no-focus 2>>"$LOG"); then
+            printf '%s\n' "$reply" >"$(git -C "$wt" rev-parse --absolute-git-dir)/herdr-open.json"
+            log "herdr space ${root##*/}-$name $reply"
+        else
+            log "herdr worktree open failed (worktree still usable)"
+        fi
+    fi
+
+    # Commit hooks run from the worktree's own venv.
+    if [ -f "$wt/pyproject.toml" ] && [ ! -d "$wt/.venv" ] && command -v uv >/dev/null; then
+        uv sync --directory "$wt" >&2 2>&1 || log "uv sync failed in $wt"
+    fi
+
+    printf '%s\n' "$wt"
+    ;;
+remove)
+    wt=$(jq -r '.worktree_path // empty' <<<"$input")
+    [ -n "$wt" ] && [ -d "$wt" ] || { log "nothing at '${wt:-}'"; exit 0; }
+    # Only the id recorded at create time names the space. herdr's remove with
+    # no id acts on the calling pane's space, which is Claude's own, so without
+    # one the checkout goes through git and the space is left for you to close.
+    # Neither path forces, so a dirty worktree survives and says why on stderr.
+    state="$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null)/herdr-open.json"
+    branch=$(git -C "$wt" symbolic-ref -q --short HEAD)
+    common=$(git -C "$wt" rev-parse --path-format=absolute --git-common-dir)
+    id=$(jq -r '[.. | objects | (.workspace_id? // empty)] | first // empty' "$state" 2>/dev/null)
+    if herdr_ok && [ -n "$id" ] &&
+        "$HERDR_BIN_PATH" worktree remove --workspace "$id" >/dev/null 2>>"$LOG"; then
+        log "herdr removed $wt (workspace $id)"
+    else
+        git -C "$wt" worktree remove "$wt" >&2 2>&1 || die "git worktree remove $wt failed"
+        log "git removed $wt${id:+ (herdr remove of $id failed)}"
+    fi
+    # Claude's own remove takes the branch too. -d, not -D: a branch holding
+    # work that isn't merged anywhere stays, and git says so on stderr.
+    if [ -n "$branch" ] && git -C "${common%/*}" show-ref -q --verify "refs/heads/$branch"; then
+        git -C "${common%/*}" branch -d "$branch" >&2 2>&1 &&
+            log "deleted branch $branch" || log "kept branch $branch (unmerged)"
+    fi
+    ;;
+*)
+    echo "usage: worktree-hook create|remove  (hook JSON on stdin)" >&2
+    exit 2
+    ;;
+esac

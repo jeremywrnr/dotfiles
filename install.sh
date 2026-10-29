@@ -485,6 +485,8 @@ echo "Claude Code:"
 link claude/settings.json .claude/settings.json
 link claude/statusline.sh .claude/statusline.sh
 link claude/tab-title.sh  .claude/tab-title.sh
+link claude/worktree-hook .claude/worktree-hook
+link claude/CLAUDE.md     .claude/CLAUDE.md
 
 # The herdrhook filter (see claude/herdr-hook-filter): .gitattributes names it,
 # but its commands live in .git/config, which a clone does not carry. Set up
