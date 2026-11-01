@@ -36,7 +36,9 @@ nohup "$chrome" \
 
 for _ in $(seq 60); do
   if curl -fsS "http://127.0.0.1:$port/json/version" >/dev/null 2>&1; then
-    echo "filters browser up on :$port"
+    echo "filters browser up on :$port; its log so far:"
+    sleep 2
+    tail -n 20 "$base/chrome.log"
     exit 0
   fi
   sleep 1

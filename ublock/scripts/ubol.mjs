@@ -5,20 +5,51 @@
 //   node scripts/ubol.mjs status        what is imported, and whether user scripts are allowed
 //   node scripts/ubol.mjs import [url]  import (or force a re-import of) a list URL
 //   node scripts/ubol.mjs remove [url]  drop an imported list
-import { createHash } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import { CDP, openTab } from "#cdp";
 import { LIST_URL } from "./serve.mjs";
 import { UBOL_DIR } from "./list.mjs";
 
-// Chrome names an unpacked extension after a hash of its absolute path:
-// the first 32 hex digits of sha256(path), each mapped 0-f -> a-p.
-export const UBOL_ID = [
-  ...createHash("sha256").update(UBOL_DIR).digest("hex").slice(0, 32),
-]
-  .map((c) => String.fromCharCode(97 + parseInt(c, 16)))
-  .join("");
+// What chrome://extensions knows about every installed extension.
+export async function extensions() {
+  const page = await openTab("chrome://extensions/");
+  try {
+    return await page.evaluate(`chrome.developerPrivate.getExtensionsInfo().then((all) =>
+      all.map((e) => ({ id: e.id, name: e.name, path: e.path, state: e.state })))`);
+  } finally {
+    await page.close();
+  }
+}
+
+// uBO Lite's extension ID, found by the folder it was loaded from (Chrome derives
+// an unpacked extension's ID from that path, after resolving symlinks).
+let ubolId;
+export async function getUbolId() {
+  if (ubolId) return ubolId;
+  let want;
+  try {
+    want = realpathSync(UBOL_DIR);
+  } catch {
+    throw new Error(`uBO Lite is not at ${UBOL_DIR}; run \`just ubol\``);
+  }
+  const real = (p) => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return p;
+    }
+  };
+  const all = await extensions();
+  const ext = all.find((e) => e.path && real(e.path) === want);
+  if (!ext || ext.state !== "ENABLED")
+    throw new Error(
+      `uBO Lite from ${UBOL_DIR} is not loaded and enabled in the filters browser ` +
+        `(relaunch with \`just restart\`). Loaded: ${JSON.stringify(all)}`,
+    );
+  return (ubolId = ext.id);
+}
 
 export async function assertBrowser() {
   try {
@@ -34,10 +65,11 @@ export async function assertBrowser() {
 // Chrome only runs once the extension's "Allow User Scripts" toggle is on. Flip
 // it from chrome://extensions, the page that owns that toggle. Idempotent.
 export async function allowUserScripts() {
-  const page = await openTab(`chrome://extensions/?id=${UBOL_ID}`);
+  const id = await getUbolId();
+  const page = await openTab(`chrome://extensions/?id=${id}`);
   try {
     return await page.evaluate(`(async () => {
-      const id = ${JSON.stringify(UBOL_ID)};
+      const id = ${JSON.stringify(id)};
       const info = await chrome.developerPrivate.getExtensionInfo(id);
       if (!info.userScriptsAccess.isActive)
         await chrome.developerPrivate.updateExtensionConfiguration({ extensionId: id, userScriptsAccess: true });
@@ -51,14 +83,11 @@ export async function allowUserScripts() {
 // A dashboard tab: message() talks to uBO Lite's background, storage() reads its
 // chrome.storage.local. close() closes the tab.
 export async function dashboard() {
-  const page = await openTab(`chrome-extension://${UBOL_ID}/dashboard.html`);
-  // The service worker sleeps when idle, so the dashboard itself is the check
-  // that the extension is installed: otherwise it is an error page.
-  if ((await page.evaluate("globalThis.chrome?.runtime?.id")) !== UBOL_ID) {
+  const id = await getUbolId();
+  const page = await openTab(`chrome-extension://${id}/dashboard.html`);
+  if ((await page.evaluate("globalThis.chrome?.runtime?.id")) !== id) {
     await page.close();
-    throw new Error(
-      `uBO Lite (${UBOL_ID}) is not loaded from ${UBOL_DIR}; relaunch with \`just restart\``,
-    );
+    throw new Error(`uBO Lite's dashboard (${id}) did not load`);
   }
   const message = (what, extra = {}) =>
     page.evaluate(
@@ -136,7 +165,7 @@ export async function status() {
   const ui = await dashboard();
   try {
     return {
-      id: UBOL_ID,
+      id: await getUbolId(),
       userScriptsAllowed: (await ui.userScripts()) !== null,
       registeredUserScripts: await ui.userScripts(),
       imported: ((await ui.message("getImportedLists")) || []).map((l) => ({

@@ -189,6 +189,37 @@ for (const block of blocks) {
   });
 }
 
+// uBO Lite applies an imported list's cosmetic filters through a registered user
+// script. It has been seen to drop that registration seconds after an import
+// while keeping the list, leaving pages opened later unfiltered. Every check
+// above runs right after the import, so check once more on a page opened after
+// a pause, the way a device sees it.
+const PAUSE_MS = 8000;
+const later = pages.find((p) => !localOnly(p.block));
+if (later)
+  describe("after a pause", () => {
+    test(`still applies to a page opened later: ${later.url}`, (t) =>
+      check(later, t, "still applies to a page opened later", async () => {
+        await sleep(PAUSE_MS);
+        const tab = await openTab(later.url);
+        try {
+          const probe = later.block.probe || later.block.filters[0].selector;
+          let state = await waitForMatch(tab, probe);
+          if (state.count === 0)
+            return `${probe} matched nothing (stale, or not shown this time)`;
+          await sleep(1000);
+          state = await tab.evaluate(matchState(probe));
+          assert.equal(
+            state.visible,
+            0,
+            `${state.visible} of ${state.count} elements matching ${probe} are visible ${PAUSE_MS / 1000}s after the import: uBO Lite stopped applying the list (\`node scripts/ubol.mjs status\` shows its registered user scripts)`,
+          );
+        } finally {
+          await tab.close();
+        }
+      }));
+  });
+
 async function writeReport() {
   const all = pages.flatMap((p) => p.results.map((r) => ({ ...r, page: p })));
   const n = (s) => all.filter((r) => r.status === s).length;
