@@ -9,7 +9,7 @@ adding a file here adds a command — no symlinking, no re-running `install.sh`.
 | `to-mp4` | video → mp4, stream-copying rather than re-encoding when the codecs already suit |
 | `set-media-date` | write EXIF/QuickTime dates onto images and videos |
 | `screenshare` | Screen Sharing to a Mac through an ssh tunnel, torn down together (`screenshare <host>`) |
-| `chrome-dev` | a dedicated Chrome for Testing for agent-driven UI work: its own persistent profile, DevTools on `127.0.0.1:9222` (or `$CHROME_DEV_PORT`), unpacked extensions loaded with `--ext DIR` (`chrome-dev --ext . https://example.com`) |
+| `chrome-dev` | a dedicated Chrome for Testing for agent-driven UI work: its own persistent profile, DevTools on `127.0.0.1:9222` (or `$CHROME_DEV_PORT`), unpacked extensions loaded with `--ext DIR` (`chrome-dev --ext . https://example.com`). `--host HOST` runs it on another machine and tunnels DevTools back, so no window opens here |
 | `mirror-github` | mirror a GitHub repo onto the self-hosted Gitea instance |
 | `git-remote-setter` | flip a repo's origin between https and ssh (`git remote-setter ssh`) |
 | `git-open` | open the repo's web remote in a browser (`git open`) |
