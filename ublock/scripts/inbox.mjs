@@ -19,7 +19,7 @@ import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 
 const LABEL = "ublock";
-const BOTS = ["app/github-actions", "github-actions"];
+const BOTS = ["app/github-actions", "github-actions", "github-actions[bot]"];
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const [cmd, ...rest] = args.filter((a) => a !== "--dry-run");
