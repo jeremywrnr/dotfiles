@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# chrome-dev: dedicated Chrome for Testing for agent-driven development.
+#
+#   chrome-dev [--ext DIR]... [--restart] [URL...]
+#
+# - Persistent profile (stay signed in) at $CHROME_DEV_HOME/profile
+# - DevTools protocol on 127.0.0.1:$CHROME_DEV_PORT for chrome-devtools-mcp
+# - Loads unpacked extensions: each --ext DIR, or the cwd if it has manifest.json
+# - --restart quits a running instance first (picks up rebuilt extensions)
+# - Started over ssh, it still opens in the logged-in GUI session, but can't
+#   unlock the login keychain, so it keeps its profile's secrets under a fixed
+#   key instead (--use-mock-keychain). Start a given profile the same way each
+#   time, or its saved sign-ins won't decrypt.
+# - Upgrade: npx @puppeteer/browsers install chrome@stable --path "$CHROME_DEV_HOME"
+set -euo pipefail
+
+CHROME_DEV_HOME="${CHROME_DEV_HOME:-$HOME/.local/share/chrome-dev}"
+CHROME_DEV_PORT="${CHROME_DEV_PORT:-9222}"
+PROFILE="$CHROME_DEV_HOME/profile"
+
+# Newest installed build, Apple Silicon, Intel or Linux (@puppeteer/browsers layout).
+shopt -s nullglob
+bins=(
+  "$CHROME_DEV_HOME"/chrome/mac_arm-*/chrome-mac-arm64/"Google Chrome for Testing.app"/Contents/MacOS/"Google Chrome for Testing"
+  "$CHROME_DEV_HOME"/chrome/mac-*/chrome-mac-x64/"Google Chrome for Testing.app"/Contents/MacOS/"Google Chrome for Testing"
+  "$CHROME_DEV_HOME"/chrome/linux-*/chrome-linux64/chrome
+)
+shopt -u nullglob
+BIN=$(printf '%s\n' ${bins[@]+"${bins[@]}"} | sort -V | tail -n 1)
+if [[ -z "$BIN" ]]; then
+  echo "Chrome for Testing not found. Install with:" >&2
+  echo "  npx @puppeteer/browsers install chrome@stable --path \"$CHROME_DEV_HOME\"" >&2
+  exit 1
+fi
+
+exts=()
+urls=()
+restart=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ext) exts+=("$(cd "$2" && pwd)"); shift 2 ;;
+    --restart) restart=1; shift ;;
+    -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) urls+=("$1"); shift ;;
+  esac
+done
+[[ ${#exts[@]} -eq 0 && -f manifest.json ]] && exts+=("$PWD")
+
+running() { curl -sf "http://127.0.0.1:$CHROME_DEV_PORT/json/version" >/dev/null; }
+
+if running; then
+  if [[ $restart -eq 0 ]]; then
+    echo "chrome-dev already running on :$CHROME_DEV_PORT (use --restart to relaunch)"
+    exit 0
+  fi
+  pkill -f -- "--user-data-dir=$PROFILE" || true
+  for _ in {1..50}; do running || break; sleep 0.1; done
+fi
+
+args=(
+  --user-data-dir="$PROFILE"
+  --remote-debugging-port="$CHROME_DEV_PORT"
+  --no-first-run
+  --no-default-browser-check
+)
+[[ -n ${SSH_CONNECTION:-} ]] && args+=(--use-mock-keychain)
+if [[ ${#exts[@]} -gt 0 ]]; then
+  joined=$(IFS=,; echo "${exts[*]}")
+  args+=(--load-extension="$joined" --disable-extensions-except="$joined")
+  echo "loading extensions: $joined"
+fi
+
+mkdir -p "$PROFILE"
+nohup "$BIN" "${args[@]}" ${urls[@]+"${urls[@]}"} >"$CHROME_DEV_HOME/chrome.log" 2>&1 &
+for _ in {1..100}; do running && break; sleep 0.1; done
+running && echo "chrome-dev up on :$CHROME_DEV_PORT" || { echo "chrome-dev failed to start; see $CHROME_DEV_HOME/chrome.log" >&2; exit 1; }
