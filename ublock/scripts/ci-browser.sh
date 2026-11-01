@@ -4,7 +4,9 @@
 # DevTools on $CHROME_DEV_PORT (default 9223), as `just browser` does locally.
 # Returns once DevTools answers; the browser keeps running for later steps.
 #
-# CHROME_BIN skips the install (to try this locally with an existing build).
+# FILTERS_CHROME skips the install (to try this locally with an existing build).
+# Not CHROME_BIN: GitHub's runner images set that to their branded Chrome, which
+# ignores --load-extension.
 set -euo pipefail
 
 : "${UBOL_DIR:?set UBOL_DIR to uBO Lite unpacked by scripts/get-ubol.sh}"
@@ -12,9 +14,9 @@ port="${CHROME_DEV_PORT:-9223}"
 base="${RUNNER_TEMP:-$(mktemp -d)}/filters-browser"
 mkdir -p "$base"
 
-chrome="${CHROME_BIN:-}"
+chrome="${FILTERS_CHROME:-}"
 if [ -z "$chrome" ]; then
-  # Pinned: this runs with the job's token in the environment.
+  # Pinned, so a new release of the installer can't change CI unannounced.
   chrome=$(npx -y @puppeteer/browsers@3.2.6 install chrome@stable \
     --path "$base/cft" --format '{{path}}' | tail -n 1)
 fi
