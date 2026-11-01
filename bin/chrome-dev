@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# chrome-dev: dedicated Chrome for Testing for agent-driven development.
+#
+#   chrome-dev [--ext DIR]... [--restart] [URL...]
+#   chrome-dev --host HOST [--reverse PORT]... [--ext DIR]... [--restart] [URL...]
+#   chrome-dev --host HOST --status | --down
+#
+# - Persistent profile (stay signed in) at $CHROME_DEV_HOME/profile
+# - DevTools protocol on 127.0.0.1:$CHROME_DEV_PORT for chrome-devtools-mcp
+# - Loads unpacked extensions: each --ext DIR, or the cwd if it has manifest.json
+# - --restart quits a running instance first (picks up rebuilt extensions)
+# - --host HOST (or $CHROME_DEV_HOST) runs it on that machine over ssh instead,
+#   so no window opens here, and tunnels its DevTools port back to this
+#   machine's 127.0.0.1:$CHROME_DEV_PORT: tools and the MCP see no difference.
+#   Each --ext DIR is rsynced to HOST first, into ~/.local/share/chrome-dev-ext/
+#   (never over HOST's own checkouts). --reverse PORT forwards HOST's
+#   127.0.0.1:PORT back here, for a local server the pages must reach.
+#   --status shows the tunnel; --down closes it (the browser keeps running).
+#   HOST needs these dotfiles, Chrome for Testing, and a logged-in screen.
+# - Started over ssh, it still opens in the logged-in GUI session, but can't
+#   unlock the login keychain, so it keeps its profile's secrets under a fixed
+#   key instead (--use-mock-keychain). Start a given profile the same way each
+#   time, or its saved sign-ins won't decrypt.
+# - Upgrade: npx @puppeteer/browsers install chrome@stable --path ~/.local/share/chrome-dev
+#   (a second instance with its own $CHROME_DEV_HOME uses that build too)
+set -euo pipefail
+
+DEFAULT_HOME="$HOME/.local/share/chrome-dev"
+CHROME_DEV_HOME="${CHROME_DEV_HOME:-$DEFAULT_HOME}"
+CHROME_DEV_PORT="${CHROME_DEV_PORT:-9222}"
+PROFILE="$CHROME_DEV_HOME/profile"
+
+exts=()
+urls=()
+reverse=()
+restart=0
+host="${CHROME_DEV_HOST:-}"
+action=launch
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ext) exts+=("$(cd "$2" && pwd)"); shift 2 ;;
+    --restart) restart=1; shift ;;
+    --host) host=$2; shift 2 ;;
+    --reverse) reverse+=("$2"); shift 2 ;;
+    --status) action=status; shift ;;
+    --down) action=down; shift ;;
+    -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) urls+=("$1"); shift ;;
+  esac
+done
+[[ ${#exts[@]} -eq 0 && -f manifest.json ]] && exts+=("$PWD")
+
+running() { curl -sf "http://127.0.0.1:$CHROME_DEV_PORT/json/version" >/dev/null; }
+
+# ---- on another machine, tunneled here ------------------------------------
+if [[ -n $host ]]; then
+  sock="$HOME/.ssh/chrome-dev-$host-$CHROME_DEV_PORT.sock"
+  tunnel_up() { ssh -S "$sock" -O check "$host" 2>/dev/null; }
+  # $HOME-relative, so the same path means the same thing on HOST.
+  under_home() {
+    case $1 in
+      "$HOME"/*) printf '%s' "${1#"$HOME"/}" ;;
+      *) echo "chrome-dev: $1 isn't under \$HOME, so it has no place on $host" >&2; exit 1 ;;
+    esac
+  }
+  # A login + interactive zsh, so PATH has dotfiles' bin/ and node. Its
+  # "can't change option: zle" complaint (no terminal) is noise.
+  on_host() {
+    ssh -o BatchMode=yes "$host" "zsh -lic $(printf '%q' "$1")" \
+      2> >(grep -v "can't change option: zle" >&2)
+  }
+
+  case $action in
+    status)
+      if tunnel_up; then echo "tunnel to $host: up"; else echo "tunnel to $host: down"; fi
+      if running; then
+        curl -s "http://127.0.0.1:$CHROME_DEV_PORT/json/version" | grep '"Browser"'
+      else
+        echo "nothing answering on 127.0.0.1:$CHROME_DEV_PORT"
+      fi
+      exit 0 ;;
+    down)
+      tunnel_up && ssh -S "$sock" -O exit "$host" 2>/dev/null
+      echo "tunnel to $host closed (its browser keeps running)"
+      exit 0 ;;
+  esac
+
+  if ! tunnel_up && running; then
+    echo "chrome-dev: a browser on this machine already holds :$CHROME_DEV_PORT; quit it first" >&2
+    exit 1
+  fi
+
+  # CHROME_DEV_HOST= so HOST's own copy launches there instead of tunneling on.
+  cmd="CHROME_DEV_HOST= CHROME_DEV_HOME=\"\$HOME\"/$(printf '%q' "$(under_home "$CHROME_DEV_HOME")")"
+  cmd+=" CHROME_DEV_PORT=$CHROME_DEV_PORT chrome-dev"
+  [[ $restart -eq 1 ]] && cmd+=" --restart"
+  for e in ${exts[@]+"${exts[@]}"}; do
+    dest=".local/share/chrome-dev-ext/$(under_home "$e")"
+    ssh -o BatchMode=yes "$host" "mkdir -p $(printf '%q' "$dest")"
+    rsync -a --delete --exclude .git --exclude node_modules "$e/" "$host:$dest/"
+    cmd+=" --ext \"\$HOME\"/$(printf '%q' "$dest")"
+  done
+  for u in ${urls[@]+"${urls[@]}"}; do cmd+=" $(printf '%q' "$u")"; done
+  on_host "$cmd"
+
+  forwards=()
+  for p in ${reverse[@]+"${reverse[@]}"}; do forwards+=(-R "$p:127.0.0.1:$p"); done
+  if tunnel_up; then
+    # Add any new --reverse ports to the open tunnel; ones it has already fail
+    # harmlessly.
+    for p in ${reverse[@]+"${reverse[@]}"}; do
+      ssh -S "$sock" -O forward -R "$p:127.0.0.1:$p" "$host" 2>/dev/null || true
+    done
+  else
+    ssh -M -S "$sock" -fN -o BatchMode=yes -o ExitOnForwardFailure=yes \
+      -o ServerAliveInterval=30 \
+      -L "$CHROME_DEV_PORT:127.0.0.1:$CHROME_DEV_PORT" ${forwards[@]+"${forwards[@]}"} "$host"
+  fi
+  running && echo "chrome-dev on $host, tunneled to 127.0.0.1:$CHROME_DEV_PORT" ||
+    { echo "chrome-dev: the tunnel is up but nothing answers on :$CHROME_DEV_PORT" >&2; exit 1; }
+  exit 0
+fi
+
+# ---- here ----------------------------------------------------------------
+if [[ $action != launch ]]; then
+  echo "chrome-dev: --$action needs --host (or \$CHROME_DEV_HOST)" >&2
+  exit 2
+fi
+
+# Newest installed build, Apple Silicon, Intel or Linux (@puppeteer/browsers
+# layout), from this instance's home or else the default one.
+shopt -s nullglob
+bins=()
+for h in "$CHROME_DEV_HOME" "$DEFAULT_HOME"; do
+  bins+=(
+    "$h"/chrome/mac_arm-*/chrome-mac-arm64/"Google Chrome for Testing.app"/Contents/MacOS/"Google Chrome for Testing"
+    "$h"/chrome/mac-*/chrome-mac-x64/"Google Chrome for Testing.app"/Contents/MacOS/"Google Chrome for Testing"
+    "$h"/chrome/linux-*/chrome-linux64/chrome
+  )
+  [[ ${#bins[@]} -gt 0 ]] && break
+done
+shopt -u nullglob
+BIN=$(printf '%s\n' ${bins[@]+"${bins[@]}"} | sort -V | tail -n 1)
+if [[ -z "$BIN" ]]; then
+  echo "Chrome for Testing not found. Install with:" >&2
+  echo "  npx @puppeteer/browsers install chrome@stable --path \"$DEFAULT_HOME\"" >&2
+  exit 1
+fi
+
+if running; then
+  if [[ $restart -eq 0 ]]; then
+    echo "chrome-dev already running on :$CHROME_DEV_PORT (use --restart to relaunch)"
+    exit 0
+  fi
+  pkill -f -- "--user-data-dir=$PROFILE" || true
+  for _ in {1..50}; do running || break; sleep 0.1; done
+fi
+
+args=(
+  --user-data-dir="$PROFILE"
+  --remote-debugging-port="$CHROME_DEV_PORT"
+  --no-first-run
+  --no-default-browser-check
+)
+[[ -n ${SSH_CONNECTION:-} ]] && args+=(--use-mock-keychain)
+if [[ ${#exts[@]} -gt 0 ]]; then
+  joined=$(IFS=,; echo "${exts[*]}")
+  args+=(--load-extension="$joined" --disable-extensions-except="$joined")
+  echo "loading extensions: $joined"
+fi
+
+mkdir -p "$PROFILE"
+nohup "$BIN" "${args[@]}" ${urls[@]+"${urls[@]}"} >"$CHROME_DEV_HOME/chrome.log" 2>&1 &
+for _ in {1..100}; do running && break; sleep 0.1; done
+running && echo "chrome-dev up on :$CHROME_DEV_PORT" || { echo "chrome-dev failed to start; see $CHROME_DEV_HOME/chrome.log" >&2; exit 1; }
