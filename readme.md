@@ -34,6 +34,9 @@ upgrades go through `brewup`, which only takes prebuilt bottles.
   settings.json as a color scheme (merged, not linked: the terminal rewrites it)
 - `screenshot/` — `install.sh` pins the capture location, format and thumbnail;
   the agent then mirrors each new shot onto the clipboard
+- `ublock/` — my uBlock Origin cosmetic filter list, which every browser
+  subscribes to by URL, and the tooling that tests each filter in a live page
+  (see `ublock/readme.md`)
 - LaunchAgent templates sit beside what they run; `install.sh` stamps in the paths
 
 Platform differences live in `zsh/10-linux.zsh` and `zsh/10-darwin.zsh` rather

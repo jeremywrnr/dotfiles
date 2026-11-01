@@ -1,0 +1,16 @@
+{
+  "name": "ublock-filters",
+  "private": true,
+  "type": "module",
+  "description": "Hand-verified uBlock Origin cosmetic filters, tested in uBO Lite and synced by URL",
+  "scripts": {
+    "lint": "node scripts/lint.mjs filters.txt",
+    "test": "node --test --test-concurrency=1 --test-timeout=120000 test/filters.test.mjs"
+  },
+  "imports": {
+    "#cdp": "./scripts/cdp.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

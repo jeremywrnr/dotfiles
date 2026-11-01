@@ -1,0 +1,36 @@
+# Filters browser: a chrome-dev instance with its own profile and port, so it
+# never collides with the default one on :9222. uBO Lite sits beside its
+# profile (see scripts/get-ubol.sh for why it isn't in the repo).
+export CHROME_DEV_HOME := env("HOME") / ".local/share/chrome-dev-filters"
+export CHROME_DEV_PORT := "9223"
+export UBOL_DIR := CHROME_DEV_HOME / "ubol"
+
+# List recipes
+default:
+    @just --list
+
+# Download (or upgrade) uBO Lite
+ubol:
+    ./scripts/get-ubol.sh
+
+# Launch the filters browser with uBO Lite (no-op if it is already running)
+browser url="https://www.youtube.com" *flags="":
+    @[ -f "$UBOL_DIR/manifest.json" ] || ./scripts/get-ubol.sh
+    @[ -e "$CHROME_DEV_HOME/chrome" ] || ln -s "{{env("HOME")}}/.local/share/chrome-dev/chrome" "$CHROME_DEV_HOME/chrome"
+    chrome-dev {{flags}} --ext "$UBOL_DIR" "{{url}}"
+
+# Relaunch the filters browser (picks up an upgraded uBO Lite)
+restart url="https://www.youtube.com":
+    just browser "{{url}}" --restart
+
+# Check filters.txt: syntax via uBO Lite's own parser, plus test metadata
+lint:
+    node scripts/lint.mjs filters.txt
+
+# End-to-end: load filters.txt into uBO Lite in the filters browser, check every filter hides its target
+test *args="":
+    node --test --test-concurrency=1 --test-timeout=120000 {{args}} test/filters.test.mjs
+
+# Screenshot a tab with and without a candidate selector: just diff <url-substring> '<selector>' [outdir]
+diff match selector outdir="/tmp/ublock-filters-diff":
+    ./scripts/filter-diff.sh "{{match}}" "{{selector}}" "{{outdir}}"

@@ -1,0 +1,16 @@
+! Title: Jeremy's filters
+! Description: Hand-verified cosmetic filters, each found and tested in a live page
+! Expires: 1 day
+! Homepage: https://github.com/jeremywrnr/dotfiles/tree/main/ublock
+!
+! Each block: what it hides, a "test:" page where that shows up, an optional
+! "probe:" CSS selector (needed for procedural filters), and the date it was last
+! "verified:" in a live page. `just test` loads every test page with this list.
+
+! === youtube.com ===
+
+! Shorts shelves in search results. Every shelf holds ytm-shorts-lockup-view-model
+! cards; the picker's class-chain filter caught only the one titled "Shorts".
+! test: https://www.youtube.com/results?search_query=cats
+! verified: 2026-10-31
+youtube.com##grid-shelf-view-model:has(ytm-shorts-lockup-view-model)

@@ -1,0 +1,52 @@
+name: ublock
+
+# ublock/filters.txt is subscribed to by URL on every device, so a broken filter
+# pushed to main reaches all of them. Lint it whenever it or its tooling changes.
+on:
+  push:
+    branches: [main]
+    paths: ["ublock/**", ".github/workflows/ublock.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["ublock/**", ".github/workflows/ublock.yml"]
+
+# nothing here writes anything back, so the token gets read access and no more
+permissions:
+  contents: read
+
+# a newer push makes an older run's answer stale; main keeps every run as the record
+concurrency:
+  group: ublock-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    # this takes seconds; anything near the limit is hung
+    timeout-minutes: 10
+
+    # `just test` is not here on purpose: it drives real sites through uBO Lite
+    # in the local filters browser. Run it before pushing (see ublock/readme.md).
+    defaults:
+      run:
+        working-directory: ublock
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # lint parses every filter with uBO Lite's own parser, so fetch the build
+      - name: Download uBO Lite
+        run: ./scripts/get-ubol.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UBOL_DIR: ${{ runner.temp }}/ubol
+
+      - name: Lint filters.txt
+        run: node scripts/lint.mjs filters.txt
+        env:
+          UBOL_DIR: ${{ runner.temp }}/ubol
