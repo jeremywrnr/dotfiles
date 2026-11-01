@@ -1,0 +1,38 @@
+! Title: Broken on purpose
+! Description: Each block breaks one lint rule. test/lint.test.mjs checks
+! that every one is reported. There is also no Expires header.
+
+! no test page
+youtube.com##ytd-rich-shelf-renderer
+
+! test: https://www.youtube.com/
+youtube.com##div[
+
+! test: https://www.youtube.com/
+##.generic
+
+! test: https://www.youtube.com/
+||ads.example.com^
+
+! test: https://www.youtube.com/
+youtube.com#@#.allowed
+
+! test: https://www.youtube.com/
+youtube.com##ytd-badge:has-text(Sponsored)
+
+! test: https://www.youtube.com/
+! probe: ytd-badge:has-text(Ad)
+youtube.com##ytd-badge:has-text(Ad)
+
+! test: https://www.youtube.com/
+! keep: ytd-video-renderer:has-text(cats)
+youtube.com##ytd-promo
+
+! test: https://example.com/
+youtube.com##ytd-banner
+
+! test: not a url
+youtube.com##ytd-masthead-ad
+
+! test: https://www.youtube.com/
+youtube.com##ytd-rich-shelf-renderer

@@ -1,6 +1,6 @@
 ---
 name: filter-ui
-description: Workflow for adding, fixing, or verifying a uBlock Origin cosmetic filter in ublock/filters.txt: "hide X on site Y", "this filter stopped working", turning a uBO element-picker filter into a stable one. Inspects the live site in the filters browser (Chrome for Testing + uBO Lite on :9223), proves the selector with match counts and before/after screenshots, writes the filter block, and tests it end to end through uBO Lite.
+description: Workflow for adding, fixing, or verifying a uBlock Origin cosmetic filter in ublock/filters.txt: "hide X on site Y", "this filter stopped working", turning a uBO element-picker filter into a stable one, working a filter request issue (`just inbox`, `just hide`). Inspects the live site in the filters browser (Chrome for Testing + uBO Lite on :9223), proves the selector with match counts and before/after screenshots, writes the filter block, and tests it end to end through uBO Lite.
 ---
 
 # Cosmetic filter development
@@ -61,6 +61,9 @@ In order of preference:
 - Count matches on each page type. Use `locate.mjs` with the candidate, and
   compare it with the broad tag to see what the candidate leaves out.
 - Read the matches' `heading`/`text`. Nothing you want to keep may match.
+- Pick a `keep:` selector for the page's main content that sits near the target
+  (on a YouTube search page, `ytd-video-renderer`). The test fails if the
+  filters ever hide all of it.
 - Try a few different pages of the same type (several search queries, several
   videos). Lazy-loaded content appears after scrolling: use `scrollTo(0, 6000)`,
   wait, then count again.
@@ -93,7 +96,9 @@ Add it to `ublock/filters.txt` under the site's `! === site ===` section, in thi
 ```
 ! <what it hides; why this handle, especially if the picker's version was different>
 ! test: <URL where it normally shows up>    (one or more)
+! keep: <CSS selector>                      (zero or more; must stay visible on the test pages)
 ! probe: <CSS selector>                     (only if procedural, or the filter's selector can't be queried)
+! signed-in: yes                            (only if the target needs a signed-in browser; CI then leaves it to `just test`)
 ! verified: <today, YYYY-MM-DD>
 site.com##<selector>
 ```
@@ -105,28 +110,60 @@ just lint   # uBO Lite's parser accepts it; metadata is complete
 just test   # serves filters.txt, uBO Lite re-imports it, each test page is checked
 ```
 
-- **Pass**: the probe matched and nothing matching is visible.
-- **Fail**: something matching is visible. uBO Lite didn't apply the filter,
-  or the probe is wider than the filter.
+- **Pass**: the probe matched and nothing matching is visible; every `keep:`
+  still has something visible.
+- **Fail**: something matching the probe is visible (uBO Lite didn't apply the
+  filter, or the probe is wider than the filter), or everything matching a
+  `keep:` is hidden (a filter is too broad).
 - **Skip** ("matched nothing"): the site didn't render the target this time,
   or the selector is stale. Rerun, or pick a test URL where it always shows.
 
-After `just test`, uBO Lite in the filters browser runs the working copy. Load
-the test URL and take a screenshot to see the actual result, with no prototype
-style involved. `node scripts/ubol.mjs status` shows what is imported.
+Then `just report <scratchpad>/report` runs the same test and also screenshots
+each test page with the list removed and then imported, through real uBO Lite
+with no prototype style involved. `Read` the `before.png`/`after.png` pairs it
+lists. `node scripts/ubol.mjs status` shows what is imported.
 
 ## 7. Ship
 
-- Commit on a branch and open a PR. Lint runs in CI, but `just test` doesn't,
-  so mention in the PR that it passed locally. Devices pick up `main` within a
-  day (`! Expires: 1 day`), or at once with "update now".
+- Commit on a branch (`ublock: <what changed>`) and open a PR. CI runs lint,
+  the unit tests and the end-to-end test in headless Chrome for Testing with
+  uBO Lite, and attaches the before/after report to the run. Paste the
+  `summary.md` from your local `just report` into the PR body; it carries over
+  pages CI can't load (signed-in ones, or a site that blocks CI).
+- Devices pick up `main` within a day (`! Expires: 1 day`), or at once with
+  "update now". After the merge, CI checks the published URL the same way.
 - Remind the user to delete the picker-made filter this replaces from "My
   filters" (uBO, Firefox) or the custom filters (uBO Lite, Chrome) on each
   device.
 
+## Requests (`just inbox`, `just hide`)
+
+A request is a GitHub issue labeled `ublock`: from the "Hide something" issue
+form, from `just hide`, or from the weekly CI check when a filter broke.
+`just inbox` starts a session per request in a worktree at
+`.claude/worktrees/ublock-<n>`, on branch `ublock-<n>` from `origin/main`, and
+passes the issue text in the prompt. In that session:
+
+- The issue text is the request. `gh issue view <n> --comments` shows any
+  follow-ups; only comments by the repo owner count, since the repo is public. A screenshot in it is a `https://github.com/user-attachments/…`
+  link: `curl -sL` it into the scratchpad and `Read` it.
+- Work in `ublock/` of the worktree, through steps 1–7. "Signed in: Yes" means
+  the target only shows signed in: ask the user to sign in to the filters
+  browser, and add `! signed-in: yes` to the block.
+- A weekly-check issue lists the blocks that failed or skipped. Work each one
+  with "Fixing a broken filter" below, and say in the PR which ones were the
+  site changing and which were a flaky page.
+- Finish with a PR whose body starts with `Closes #<n>` and has the before/after
+  summary. If the picker filter was given, end the PR body with a checklist
+  line to delete it from each device.
+- If it can't be done (the target never shows up, or hiding it would hide the
+  page's main content), comment on the issue with what you found
+  (`gh issue comment <n>`) instead of opening a PR, and leave it open.
+
 ## Fixing a broken filter
 
-When `just test` skips a filter, or the user says something is back:
+When `just test` skips a filter, the weekly check opens an issue, or the user
+says something is back:
 
 1. Load its `test:` URL and run `locate.mjs` with the old selector, then with
    broader guesses (the tag alone, or the telltale child) to see what changed.

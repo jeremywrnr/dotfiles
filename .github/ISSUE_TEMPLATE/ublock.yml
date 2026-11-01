@@ -1,0 +1,38 @@
+name: Hide something (ublock)
+description: Ask for a filter in ublock/filters.txt. `just inbox` in ublock/ works these into PRs.
+title: "ublock: hide "
+labels: [ublock]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Only requests opened by the repo owner are worked; this repo is public.
+  - type: input
+    id: url
+    attributes:
+      label: Page URL
+      description: A page where it shows up.
+      placeholder: https://www.youtube.com/results?search_query=cats
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What to hide
+      description: Describe it the way you'd point at it on the page. Paste a screenshot if it helps.
+    validations:
+      required: true
+  - type: textarea
+    id: picker
+    attributes:
+      label: Picker filter (optional)
+      description: If you made one with uBO's element picker, paste it from "My filters". It's a hint, not the answer.
+      render: adblock
+  - type: dropdown
+    id: signed-in
+    attributes:
+      label: Does it only show up when signed in?
+      options:
+        - "No"
+        - "Yes"
+        - Not sure

@@ -1,0 +1,19 @@
+! Title: Good
+! Expires: 1 day
+
+! === example ===
+
+! Two filters, two test pages, a probe and two keeps.
+! Second line of notes.
+! test: https://www.youtube.com/results?search_query=cats
+! test: https://m.youtube.com/results?search_query=cats
+! probe: ytd-badge
+! keep: ytd-video-renderer
+! keep: ytd-channel-renderer
+! verified: 2026-11-01
+youtube.com##ytd-badge:has-text(Sponsored)
+youtube.com,~music.youtube.com##ytd-badge.promo
+! A comment right after filters starts the next block.
+! test: https://news.example.com/
+! signed-in: yes
+example.com##aside[data-testid="promo"]

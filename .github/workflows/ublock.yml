@@ -1,7 +1,12 @@
 name: ublock
 
 # ublock/filters.txt is subscribed to by URL on every device, so a broken filter
-# pushed to main reaches all of them. Lint it whenever it or its tooling changes.
+# pushed to main reaches all of them.
+# - pull request: lint, unit tests, and the end-to-end test of the branch's list
+# - push to main: the same, but against the published raw URL once it serves
+#   the new commit, i.e. exactly what the devices fetch
+# - weekly: the end-to-end test of the published list with the latest Chrome and
+#   uBO Lite; problems open (or update) a "ublock" issue for `just inbox`
 on:
   push:
     branches: [main]
@@ -9,14 +14,17 @@ on:
   pull_request:
     branches: [main]
     paths: ["ublock/**", ".github/workflows/ublock.yml"]
+  schedule:
+    - cron: "17 15 * * 1"
+  workflow_dispatch:
 
-# nothing here writes anything back, so the token gets read access and no more
+# only the weekly issue job writes anything back, and it asks for that itself
 permissions:
   contents: read
 
 # a newer push makes an older run's answer stale; main keeps every run as the record
 concurrency:
-  group: ublock-${{ github.ref }}
+  group: ublock-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
@@ -26,8 +34,6 @@ jobs:
     # this takes seconds; anything near the limit is hung
     timeout-minutes: 10
 
-    # `just test` is not here on purpose: it drives real sites through uBO Lite
-    # in the local filters browser. Run it before pushing (see ublock/readme.md).
     defaults:
       run:
         working-directory: ublock
@@ -50,3 +56,131 @@ jobs:
         run: node scripts/lint.mjs filters.txt
         env:
           UBOL_DIR: ${{ runner.temp }}/ubol
+
+      - name: Unit tests (list parser, lint rules)
+        run: node --test test/lint.test.mjs
+        env:
+          UBOL_DIR: ${{ runner.temp }}/ubol
+
+  e2e:
+    needs: lint
+    runs-on: ubuntu-latest
+
+    # page loads plus up to 10 minutes waiting for the raw URL after a push
+    timeout-minutes: 25
+
+    defaults:
+      run:
+        working-directory: ublock
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Set paths
+        run: |
+          echo "UBOL_DIR=$RUNNER_TEMP/ubol" >> "$GITHUB_ENV"
+          echo "REPORT_DIR=$RUNNER_TEMP/report" >> "$GITHUB_ENV"
+          echo "CHROME_DEV_PORT=9223" >> "$GITHUB_ENV"
+
+      - name: Download uBO Lite
+        run: ./scripts/get-ubol.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Start the filters browser (headless Chrome for Testing + uBO Lite)
+        run: ./scripts/ci-browser.sh
+
+      # pull requests test the checked-out list, served locally; everything else
+      # tests the URL the devices subscribe to
+      - name: Use the published list
+        if: github.event_name != 'pull_request'
+        run: |
+          url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/ublock/filters.txt"
+          echo "FILTERS_URL=$url" >> "$GITHUB_ENV"
+          [ "$GITHUB_EVENT_NAME" = push ] || exit 0
+          # raw.githubusercontent.com caches for about 5 minutes
+          for _ in $(seq 40); do
+            if curl -fsS "$url" | cmp -s - filters.txt; then exit 0; fi
+            sleep 15
+          done
+          echo "::error::$url still doesn't serve this commit's filters.txt after 10 minutes"
+          exit 1
+
+      - name: Test every filter in uBO Lite
+        run: node --test --test-concurrency=1 --test-timeout=120000 test/filters.test.mjs
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f "$REPORT_DIR/summary.md" ]; then
+            cat "$REPORT_DIR/summary.md" >> "$GITHUB_STEP_SUMMARY"
+            echo "Before/after screenshots: the \`ublock-report\` artifact (open index.html)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ublock-report
+          path: ${{ runner.temp }}/report
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # Weekly only. One open issue at a time: opened or updated when the check
+  # fails or a filter matched nothing (likely stale), closed when it's green.
+  weekly-issue:
+    needs: e2e
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+
+    steps:
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: ublock-report
+          path: report
+
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          E2E: ${{ needs.e2e.result }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="ublock: weekly check found problems"
+          existing=$(gh issue list --label ublock --state open --author app/github-actions \
+            --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
+          problems=0
+          if [ "$E2E" != success ] || [ ! -f report/results.json ]; then problems=1
+          elif [ "$(jq '.counts.fail + .counts.skip' report/results.json)" -gt 0 ]; then problems=1
+          fi
+
+          if [ "$problems" = 0 ]; then
+            if [ -n "$existing" ]; then gh issue close "$existing" --comment "All filters pass again: $RUN"; fi
+            exit 0
+          fi
+
+          {
+            echo "The weekly check of the published list found filters that failed or matched nothing."
+            echo "Work it with \`just inbox\` in ublock/ (filter-ui skill, \"Fixing a broken filter\")."
+            echo
+            if [ -f report/summary.md ]; then cat report/summary.md
+            else echo "The check itself didn't finish (job result: $E2E); see the run log."
+            fi
+            echo
+            echo "Run, with before/after screenshots in the \`ublock-report\` artifact: $RUN"
+          } > body.md
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file body.md
+            gh issue comment "$existing" --body "Still failing: $RUN"
+          else
+            gh issue create --label ublock --title "$title" --body-file body.md
+          fi

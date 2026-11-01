@@ -4,6 +4,8 @@
 //   ! Shorts shelves in search results        <- description (free text)
 //   ! test: https://www.youtube.com/results?search_query=cats
 //   ! probe: grid-shelf-view-model             <- optional
+//   ! keep: ytd-video-renderer                 <- optional, must stay visible
+//   ! signed-in: yes                           <- optional, CI can't check it
 //   ! verified: 2026-10-31
 //   youtube.com##grid-shelf-view-model:has(ytm-shorts-lockup-view-model)
 //
@@ -75,6 +77,16 @@ export async function readList(file) {
     if (block?.filters.length) blocks.push(block);
     block = null;
   };
+  const start = (line) => ({
+    line,
+    notes: [],
+    tests: [],
+    keep: [],
+    probe: null,
+    verified: null,
+    signedIn: false,
+    filters: [],
+  });
   lines.forEach((raw, i) => {
     const line = raw.trim();
     const lineNo = i + 1;
@@ -82,29 +94,25 @@ export async function readList(file) {
     if (line.startsWith("!")) {
       // A comment after filters starts a new block.
       if (block?.filters.length) flush();
-      block ??= {
-        line: lineNo,
-        notes: [],
-        tests: [],
-        probe: null,
-        verified: null,
-        filters: [],
-      };
-      const meta = /^!\s*(test|probe|verified):\s*(.*)$/i.exec(line);
-      if (!meta) block.notes.push(line.replace(/^!\s?/, ""));
-      else if (meta[1].toLowerCase() === "test")
-        block.tests.push(meta[2].trim());
-      else block[meta[1].toLowerCase()] = meta[2].trim();
+      block ??= start(lineNo);
+      const meta = /^!\s*(test|keep|probe|verified|signed-in):\s*(.*)$/i.exec(
+        line,
+      );
+      if (!meta) {
+        block.notes.push(line.replace(/^!\s?/, ""));
+        return;
+      }
+      const key = meta[1].toLowerCase();
+      const value = meta[2].trim();
+      // test: and keep: may repeat; probe: and verified: take the last value.
+      if (key === "test") block.tests.push(value);
+      else if (key === "keep") block.keep.push(value);
+      else if (key === "signed-in")
+        block.signedIn = /^(yes|true)$/i.test(value);
+      else block[key] = value;
       return;
     }
-    block ??= {
-      line: lineNo,
-      notes: [],
-      tests: [],
-      probe: null,
-      verified: null,
-      filters: [],
-    };
+    block ??= start(lineNo);
     block.filters.push({
       line: lineNo,
       filter: line,

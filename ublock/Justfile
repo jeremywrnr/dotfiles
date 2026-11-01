@@ -27,10 +27,28 @@ restart url="https://www.youtube.com":
 lint:
     node scripts/lint.mjs filters.txt
 
+# Tests for the tooling (list parser, every lint rule); no browser needed
+unit:
+    node --test test/lint.test.mjs
+
 # End-to-end: load filters.txt into uBO Lite in the filters browser, check every filter hides its target
 test *args="":
     node --test --test-concurrency=1 --test-timeout=120000 {{args}} test/filters.test.mjs
 
+# `just test`, plus before/after screenshots of every test page in <dir>/index.html
+report dir="/tmp/ublock-filters-report":
+    rm -rf "{{dir}}"
+    REPORT_DIR="{{dir}}" just test
+    @echo "report: {{dir}}/index.html"
+
 # Screenshot a tab with and without a candidate selector: just diff <url-substring> '<selector>' [outdir]
 diff match selector outdir="/tmp/ublock-filters-diff":
     ./scripts/filter-diff.sh "{{match}}" "{{selector}}" "{{outdir}}"
+
+# Work open filter requests (issues labeled ublock), one Claude session and worktree each: just inbox [number | --list]
+inbox *args="":
+    node scripts/inbox.mjs {{args}}
+
+# File a filter request and start working it: just hide <url> "<what to hide>" ['<picker filter>']
+hide $url $what $picker="":
+    node scripts/inbox.mjs hide "$url" "$what" "$picker"

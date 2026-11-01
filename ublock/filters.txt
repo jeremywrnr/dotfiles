@@ -3,7 +3,8 @@
 ! Expires: 1 day
 ! Homepage: https://github.com/jeremywrnr/dotfiles/tree/main/ublock
 !
-! Each block: what it hides, a "test:" page where that shows up, an optional
+! Each block: what it hides, a "test:" page where that shows up, optional
+! "keep:" selectors for things on that page that must stay visible, an optional
 ! "probe:" CSS selector (needed for procedural filters), and the date it was last
 ! "verified:" in a live page. `just test` loads every test page with this list.
 
@@ -12,5 +13,6 @@
 ! Shorts shelves in search results. Every shelf holds ytm-shorts-lockup-view-model
 ! cards; the picker's class-chain filter caught only the one titled "Shorts".
 ! test: https://www.youtube.com/results?search_query=cats
+! keep: ytd-video-renderer
 ! verified: 2026-10-31
 youtube.com##grid-shelf-view-model:has(ytm-shorts-lockup-view-model)
