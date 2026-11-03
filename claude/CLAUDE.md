@@ -10,6 +10,19 @@
 - Keep Claude sessions attached to the canonical path. If a repo must move, merge its `~/.claude/projects/<encoded-path>` dir into the new one and rewrite the `cwd` fields, instead of leaving sessions behind.
 - Old clones are archived under `~/Code/.archive/`, not deleted, until the user says so.
 
+## Command-line tools
+
+These modern tools are installed on this Mac; use them in place of the older ones.
+
+- **Search: `rg` (ripgrep), almost never `grep`**, for files and command output alike (`cmd | rg pattern`). A recursive `grep` over a big tree can hold a core at 100% for minutes. `rg` is many times faster and skips `.git`, `node_modules` and git-ignored files on its own.
+  - `rg` is recursive already, and grep's flags mean other things in it: `-r` is `--replace` and `-E` is `--encoding`. Its regex is extended by default; use `-F` for a fixed string, `-g '!dir'` to exclude a path and `-uu` to include ignored and hidden files.
+  - Use `grep` only where `rg` isn't installed: on the TV and other remote hosts, and in scripts that run there or in CI.
+- **Find files by name: `rg --files -g '<glob>' <dir>`**, not `find` over a big tree (`fd` isn't installed). It skips ignored files the same way.
+- **Python: `uv`.** In a project with `uv.lock`, use `uv run`, `uv add` and `uv sync`, never `pip install` or a hand-made venv. Run a tool without installing it with `uvx <tool>@<version>`, and give a one-off script a dependency with `uv run --with <pkg>`.
+- **Tasks: `just`.** Many repos have a `justfile`. Run `just --list` first and use its recipes instead of retyping their commands.
+- **JSON: `jq`**, for `gh … --json` output and API replies, instead of a `python3 -c` one-liner.
+- **`ls` is an alias for `eza --icons=always`**, so its output carries icon glyphs even in a pipe. When you parse a listing, use `command ls` or `eza` with explicit flags (`eza -1`, `eza --tree -L 2`).
+
 ## Elevated commands (sudo) on remote hosts
 
 - `sudo` over `ssh` has no TTY to prompt on, and a password can never be supplied from here. Probe first with `ssh <host> 'sudo -n true'`. Never pipe or echo a password, and never add a NOPASSWD rule as a workaround.
