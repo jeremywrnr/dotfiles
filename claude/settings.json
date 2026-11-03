@@ -92,7 +92,7 @@
   },
   "modelSettings": {
     "claude-opus-5-5": {
-      "effortLevel": "high"
+      "effortLevel": "xhigh"
     },
     "claude-fable-5": {
       "effortLevel": "medium"
@@ -102,9 +102,17 @@
     },
     "claude-opus-4-6": {
       "effortLevel": "xhigh"
+    },
+    "claude-fable-5-1": {
+      "effortLevel": "high"
     }
   },
   "tui": "fullscreen",
+  "voice": {
+    "enabled": true,
+    "mode": "hold"
+  },
+  "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
   "theme": "auto",
   "switchModelsOnFlag": true,
@@ -137,5 +145,6 @@
       "**Trusted private repo**: /Users/jeremy/Code/machines, remote git@git.jeremywrnr.com:jeremy/machines.git (https://git.jeremywrnr.com/jeremy/machines) — PRIVATE: per-host ssh config, host notes and shortcuts belong here rather than in the public dotfiles",
       "**Org-specific CLIs**: None configured — routine personal CLIs observed: brew, herdr, defaults, networksetup, ipconfig, osascript, rbenv, xcode-select"
     ]
-  }
+  },
+  "voiceEnabled": true
 }
