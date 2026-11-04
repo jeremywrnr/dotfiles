@@ -4,7 +4,10 @@
 alias brew="sudo apt-get"
 alias brewup="sudo apt-get update && sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && { ! command -v snap >/dev/null || sudo snap refresh; }"
 
-export XDG_DATA_DIRS="/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:$XDG_DATA_DIRS"
+# An ssh login arrives with this unset, and an unset value means the spec's
+# default. Setting it to only the flatpak dirs would drop that default and hide
+# /usr/share, where gsettings finds its schemas, so spell the default out.
+export XDG_DATA_DIRS="/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
 # WSL appends the Windows PATH only to shells wsl.exe starts. An ssh login
 # into WSL comes from sshd instead, so powershell.exe, cmd.exe and friends were

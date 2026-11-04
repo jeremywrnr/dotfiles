@@ -19,6 +19,7 @@
 set -euo pipefail
 
 CHANGED=0
+SKIPPED=0
 pin() {  # $1: schema. $2: key. $3: value, as `gsettings get` prints it back.
   # A schema can be absent even where gsettings exists -- it ships with glib, so
   # a non-GNOME box has the binary and none of these schemas. Report and carry
@@ -26,6 +27,7 @@ pin() {  # $1: schema. $2: key. $3: value, as `gsettings get` prints it back.
   local now
   now=$(gsettings get "$1" "$2" 2>/dev/null) || {
     echo "  skipped $1 $2 (no such schema)"
+    SKIPPED=$((SKIPPED + 1))
     return
   }
   [ "$now" = "$3" ] && return
@@ -41,4 +43,9 @@ pin org.gnome.shell.keybindings              toggle-message-tray "['<Super>m']"
 
 STATUS=ok
 [ "$CHANGED" = 1 ] && STATUS=set
+# The summary below claims every setting, so it only holds if none were skipped.
+if [ "$SKIPPED" -gt 0 ]; then
+  echo "  WARNING: $SKIPPED settings skipped, so these may not be in place"
+  exit 0
+fi
 echo "  $STATUS: caps lock as control, no idle dim or blank, Super+Shift+4 screenshots, Super+V free"
