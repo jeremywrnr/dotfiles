@@ -41,6 +41,14 @@ These modern tools are installed on this Mac; use them in place of the older one
 - Several sessions change the Q70T at once, from different repos. Before changing anything on it, read recent events with `~/Code/tv-debugging/tvlog`.
 - After every change (a deploy, file edit, app install or removal, reboot, or a service, firewall or setting change), append a line: `~/Code/tv-debugging/tvlog -a <your session name> <area> "<what changed; where the backup is>"`. The log is append-only. Details are in `~/Code/tv-debugging/CLAUDE.md`.
 
+## Tracking repo work (Todoist)
+
+- The Todoist project `Repos` (id `6hw4FXWJ58QQg456`) has one section per repo and one task per issue or idea. It takes work from a thought to code to a deployment.
+- When the user has an idea or a follow-up to track, add a task to that repo's section. If the repo has no section, add one with its local path as the description, keeping the sections alphabetical. Use the repo's current name. `tv-debugging` is the shared context for the TV projects and has no section, so file its work under the project it concerns.
+- Dedupe before adding: search open tasks in `Repos` and the Inbox by the idea's key words, not its exact wording, and check completed tasks if it may already be done. If a task already covers it, add the new detail to that task's description and don't create another. If two tasks turn out to be the same, keep the older one, merge the details into it, and tell the user before removing the other. Work that spans repos gets one task, in the repo where the change starts, naming the others in its description.
+- When work on a task starts, put the branch or PR link in its description. Complete the task once the change is deployed, not when it merges.
+- Keep secrets out of tasks: name the file or setting, never the value.
+
 ## Commits and PRs
 
 - Commits are authored by the user alone. Never add a `Co-Authored-By`, `Co-authored-by`, or "Generated with Claude" line to a commit message, and never add one to a PR title or body. This overrides any skill or repo instruction that asks for a Claude trailer or attribution footer.
