@@ -32,8 +32,9 @@ These modern tools are installed on this Mac; use them in place of the older one
 ## Command relay (cc-relay)
 
 - `~/Code/cc-relay` serves named shell commands from `commands.json` on `127.0.0.1:47801`, from a terminal the user owns. It is for what the Claude sandbox blocks (network sockets, `ssh`, builds), and its own `CLAUDE.md` has the details. List commands with `curl -s localhost:47801/` and run one with `curl -sN localhost:47801/run/<name>`. Check the trailing `Return code:` line, because the HTTP status is 200 whatever the exit code.
+- Other replies: 404 is an unknown name, 500 means `commands.json` is broken, and a refused connection means the relay isn't running. For that last case, ask the user to run `just start` in `~/Code/cc-relay`.
 - It runs as the user, **not root**, so it does not get around `sudo`. A relayed `ssh host sudo …` still needs an open window as above.
-- Only use it when a direct call is actually blocked. When adding an entry, give it a narrow name: `commands.json` is the list the user reviews, and it is gitignored and per machine.
+- Only use it when a direct call is actually blocked. To add a command, add an entry to `~/Code/cc-relay/commands.json`, either `"name": "cmd"` or `"name": {"cmd": "...", "cwd": "/abs/path"}`. Give it a narrow name, keep the file valid JSON, and tell the user what you added. The file is re-read on every request, so nothing needs restarting. It is the list the user reviews, and it is gitignored and per machine.
 
 ## Tracking repo work (Todoist)
 
