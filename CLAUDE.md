@@ -18,6 +18,8 @@ Anything per-host or private goes in the sibling private repo
   `zshrc` sources when that repo is checked out beside this one
 - personal Homebrew extras → `machines/Brewfile`
 - herdr's saved machines → `machines/herdr-machines`
+- Claude instructions that name hosts (which machine runs browser tests,
+  the TV) → `machines/claude/hosts.md`, which `claude/CLAUDE.md` imports
 
 Known, accepted exceptions: git history holds some old host names, and
 `claude/settings.json`'s `autoMode` block names the Gitea host and the
