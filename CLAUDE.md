@@ -20,6 +20,10 @@ Anything per-host or private goes in the sibling private repo
 - herdr's saved machines → `machines/herdr-machines`
 - Claude instructions that name hosts (which machine runs browser tests,
   the TV) → `machines/claude/hosts.md`, which `claude/CLAUDE.md` imports
+- Claude settings that differ per host (permission mode, effort, a local
+  model) → `machines/claude/settings/<host>.json`, layered over
+  `claude/settings.json` by `machines/zsh/claude.zsh`; `claude/settings.json`
+  holds only values every machine shares
 
 Known, accepted exceptions: git history holds some old host names, and
 `claude/settings.json`'s `autoMode` block names the Gitea host and the
