@@ -115,6 +115,15 @@ if Hardware::CPU.arm?
   # has. It drops a zsh completion in brew's site-functions, which zshrc already
   # has on fpath, so that needs nothing here. macOS only; an Intel build pulls in go.
   brew "mole"
+
+  # rustup -- Rust's toolchain manager, for the projects here that build with
+  # cargo. It has to be listed: bin/brewup's `brew bundle cleanup` uninstalls
+  # whatever is not, and on 2026-11-14 it took rustup out from under a session
+  # that was building with it, leaving the toolchains in ~/.rustup with nothing
+  # on PATH to run them. The formula is keg-only, so zsh/40-tools.zsh puts its
+  # bin on PATH. The Intel Macs have rustup from rustup.rs, in ~/.cargo/bin,
+  # and there the formula would build from source.
+  brew "rustup"
 end
 
 # Personal extras from the private machines repo, when it is checked out beside
