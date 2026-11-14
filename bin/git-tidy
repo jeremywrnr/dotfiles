@@ -1,0 +1,282 @@
+#!/usr/bin/env bash
+#
+# git tidy - remove this repo's local branches and worktrees whose work is
+# already in its default branch.
+#
+#   git tidy               remove them, saying what went and what was kept
+#   git tidy -n            only list what it would remove, and what it keeps
+#   git tidy -c            the same, exiting 1 if there is anything to remove
+#   cd ~/Code && git exec git tidy     every repo (git exec skips the worktrees
+#                                      removed before it got to them)
+#
+# "Already in the default branch" is decided against origin/HEAD (else
+# origin/main, origin/master, main, master), after a `git fetch --all --prune`,
+# by either of two tests on the branch's tip:
+#
+#   - it is an ancestor of the default branch (a merge or a fast-forward), or
+#   - merging it into the default branch would change nothing: `git merge-tree
+#     --write-tree` gives back the default branch's own tree. This is the one
+#     that matters for GitHub's squash merges, which `git branch --merged` never
+#     reports, and for cherry-picks, rebased merges and a stack of squashed PRs.
+#
+# A branch also needs nothing left upstream: an upstream that still exists must
+# itself pass the test or be behind the tip. A gone upstream (deleted after the
+# merge) is fine. Nothing is ever pushed or deleted on a remote.
+#
+# A worktree on such a branch (or a detached one whose HEAD passes) goes with
+# it, but only if it is clean (no changed or untracked files; ignored ones like
+# node_modules don't count), not locked, not in the middle of a rebase, merge,
+# cherry-pick, revert or bisect, more than a day old (one just started has
+# nothing committed yet), and no process has its cwd inside it: that keeps a
+# running shell or Claude session's worktree, and the one tidy runs in. A kept
+# worktree is listed with the reason, and its branch stays too. Never touched:
+# the default branch, and whatever the main checkout has out.
+#
+# `git worktree remove` runs without --force, so git refuses anything dirty or
+# locked whatever this script thought; branches go with `branch -D`, since a
+# squash-merged branch never passes `-d`'s check.
+#
+# Written for bash 3.2, as macOS ships it, like git-exec.
+
+set -uo pipefail
+
+usage() {
+    cat >&2 <<'EOF'
+usage: git tidy [-n | -c] [-v] [--no-fetch]
+  removes this repo's local branches and worktrees whose work is already in
+  its default branch; over many repos: git exec git tidy
+
+  -n, --dry-run  list what it would remove, and what it keeps; remove nothing
+  -c, --check    the same, and exit 1 if there is anything to remove
+  -v, --verbose  also list each branch kept, and why
+  --no-fetch     use the remote refs as they are
+  -h, --help     this message
+EOF
+}
+
+dry_run="" check="" verbose="" fetch=1
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -n|--dry-run) dry_run=1; shift ;;
+        -c|--check) dry_run=1; check=1; shift ;;
+        -v|--verbose) verbose=1; shift ;;
+        --no-fetch) fetch=""; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "git tidy: unknown argument $1" >&2; usage; exit 2 ;;
+    esac
+done
+
+# git exports these to subcommands; left set, git would keep talking to the
+# worktree tidy was started in after the cd below.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
+if [ -t 1 ]; then
+    dim=$'\033[0;90m' red=$'\033[0;31m' green=$'\033[0;32m' yellow=$'\033[0;33m' reset=$'\033[0m'
+else
+    dim="" red="" green="" yellow="" reset=""
+fi
+
+[ "$(git rev-parse --is-bare-repository 2>/dev/null)" = false ] || {
+    echo "git tidy: not in a git work tree" >&2
+    exit 1
+}
+
+# The worktrees, once: path, HEAD, branch and prunable per entry. The first is
+# the main checkout, which everything below runs from.
+wt_paths=() wt_heads=() wt_branches=() wt_prunable=()
+k=-1
+while IFS= read -r line; do
+    case "$line" in
+        "worktree "*) k=$((k + 1)); wt_paths[k]="${line#worktree }"; wt_heads[k]=""; wt_branches[k]=""; wt_prunable[k]="" ;;
+        "HEAD "*) wt_heads[k]="${line#HEAD }" ;;
+        "branch refs/heads/"*) wt_branches[k]="${line#branch refs/heads/}" ;;
+        prunable*) wt_prunable[k]=1 ;;
+    esac
+done < <(git worktree list --porcelain)
+root="${wt_paths[0]}"
+main_branch="${wt_branches[0]}"
+
+# Under `git exec git tidy`, a linked worktree whose main checkout git exec
+# also visits leaves the repo to that run, rather than tidying it again.
+here=$(git rev-parse --show-toplevel)
+if [ "$here" != "$root" ] && [ -n "${GIT_EXEC_ROOT-}" ]; then
+    case "$root/" in "$GIT_EXEC_ROOT"/*) exit 0 ;; esac
+fi
+cd "$root" || exit 1
+
+if [ -n "$fetch" ] && [ -n "$(git remote)" ]; then
+    GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10" \
+        git fetch --all --prune --quiet 2>/dev/null \
+        || printf '%sfetch failed; going by the refs as they were%s\n' "$yellow" "$reset"
+fi
+
+# The default branch: origin/HEAD's target, else the first of the rest that
+# exists, all from one listing.
+refs=$'\n'$(git for-each-ref --format='%(refname) %(symref)' \
+    refs/remotes/origin/HEAD refs/remotes/origin/main refs/remotes/origin/master refs/heads/main refs/heads/master)$'\n'
+base=""
+case "$refs" in
+    *$'\n'"refs/remotes/origin/HEAD refs/remotes/"*)
+        base="${refs#*$'\n'refs/remotes/origin/HEAD refs/remotes/}"
+        base="${base%%$'\n'*}" ;;
+    *)
+        for r in refs/remotes/origin/main refs/remotes/origin/master refs/heads/main refs/heads/master; do
+            case "$refs" in *$'\n'"$r "*) base="${r#refs/remotes/}"; base="${base#refs/heads/}"; break ;; esac
+        done ;;
+esac
+if [ -z "$base" ]; then
+    [ -n "$verbose" ] && echo "git tidy: no default branch here, nothing to do"
+    exit 0
+fi
+base_local="${base#origin/}"
+base_tree=$(git rev-parse "$base^{tree}")
+# The branches that are ancestors of the base, in one call.
+merged=$'\n'$(git for-each-ref --merged="$base" --format='%(refname:short)' refs/heads)$'\n'
+
+# Whether commit $1 is in the base: prints "merged" or "squash-merged", or fails.
+in_base() {
+    local tree
+    if git merge-base --is-ancestor "$1" "$base" 2>/dev/null; then
+        echo merged
+        return 0
+    fi
+    tree=$(git merge-tree --write-tree --no-messages "$base" "$1" 2>/dev/null) || return 1
+    [ "${tree%%$'\n'*}" = "$base_tree" ] && echo squash-merged
+}
+
+# Every process's cwd ("<path>\t<command> (<pid>)"), read once, when first needed.
+cwds=""
+in_use() {
+    [ -n "$cwds" ] || cwds=$'\n'$(lsof -d cwd -Fpcn 2>/dev/null | awk '
+        /^p/ { pid = substr($0, 2) }
+        /^c/ { cmd = substr($0, 2) }
+        /^n/ { print substr($0, 2) "\t" cmd " (" pid ")" }')
+    printf '%s\n' "$cwds" | awk -F '\t' -v p="$1" '$1 == p || index($1, p "/") == 1 { print $2; exit }'
+}
+
+now=$(date +%s)
+# Why worktree $1 can't go; nothing if it can.
+blocked() {
+    local gitdir n born who f
+    gitdir=$(git -C "$1" rev-parse --absolute-git-dir 2>/dev/null) || { echo "unreadable"; return; }
+    [ -f "$gitdir/locked" ] && { echo "locked"; return; }
+    if [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then echo "rebase in progress"; return; fi
+    for f in MERGE_HEAD:merge CHERRY_PICK_HEAD:cherry-pick REVERT_HEAD:revert BISECT_LOG:bisect; do
+        [ -f "$gitdir/${f%%:*}" ] && { echo "${f#*:} in progress"; return; }
+    done
+    n=$(git -C "$1" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    [ "$n" -gt 0 ] && { echo "$n uncommitted file(s)"; return; }
+    # Its HEAD's first reflog entry, "HEAD@{<unix time>}": when it was made.
+    born=$(git -C "$1" reflog show --date=unix --format=%gd HEAD 2>/dev/null | tail -1)
+    born="${born##*@\{}"
+    born="${born%\}}"
+    if [ "$born" -eq "$born" ] 2>/dev/null && [ $((now - born)) -lt 86400 ]; then
+        echo "made in the last day"
+        return
+    fi
+    who=$(in_use "$1")
+    [ -n "$who" ] && echo "in use by $who"
+}
+
+# A worktree as it's shown: inside the repo relative to it, else under ~.
+rel() {
+    # shellcheck disable=SC2088  # the ~ is meant literally
+    case "$1" in
+        "$root"/*) printf '%s' "${1#"$root"/}" ;;
+        "$HOME"/*) printf '~/%s' "${1#"$HOME"/}" ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+removed=0 kept=0 failed=0
+# One line of the report: a color, a verb, the thing and why.
+say() {
+    printf '  %s%-7s%s %s  %s(%s)%s\n' "$1" "$2" "$reset" "$3" "$dim" "$4" "$reset"
+}
+keep() {
+    kept=$((kept + 1))
+    say "$yellow" keep "$1" "$2"
+}
+# Run git with args $3...: report $1 as done ($2: its verb) or failed. A dry run
+# only reports, with the verb's plain form (removed -> remove).
+act() {
+    local what="$1" verb="$2" why="$3" err
+    shift 3
+    removed=$((removed + 1))
+    if [ -n "$dry_run" ]; then
+        say "$green" "${verb%d}" "$what" "$why"
+        return 0
+    fi
+    if ! err=$(git "$@" 2>&1); then
+        failed=$((failed + 1))
+        say "$red" failed "$what" "${err%%$'\n'*}"
+        return 1
+    fi
+    say "$green" "$verb" "$what" "$why"
+}
+# A worktree that can go: $1 its path, $2 why it's done with. Fails if kept.
+take_worktree() {
+    local reason
+    reason=$(blocked "$1")
+    if [ -n "$reason" ]; then
+        keep "worktree $(rel "$1")" "$reason; $2"
+        return 1
+    fi
+    act "worktree $(rel "$1")" removed "$2" worktree remove "$1"
+}
+
+# Worktrees whose folders are gone: one prune for all of them.
+for ((k = 1; k < ${#wt_paths[@]}; k++)); do
+    if [ -n "${wt_prunable[k]}" ]; then
+        act "worktree $(rel "${wt_paths[k]}")" pruned "its folder is gone" worktree prune
+        break
+    fi
+done
+
+stashes=$'\n'$(git stash list --format=%gs 2>/dev/null)
+
+# Fields split on the unit separator: a tab is whitespace to read, so an empty
+# upstream would collapse and shift the worktree path into its place.
+while IFS=$'\037' read -r b tip upstream track wt; do
+    [ "$b" = "$base_local" ] && continue
+    if [ "$b" = "$main_branch" ]; then
+        [ -n "$verbose" ] && say "$dim" keep "branch $b" "the main checkout has it out"
+        continue
+    fi
+    case "$merged" in
+        *$'\n'"$b"$'\n'*) why=merged ;;
+        *) why=$(in_base "$tip") || {
+            [ -n "$verbose" ] && say "$dim" keep "branch $b" "$(git rev-list --count "$base..$tip") commit(s) not in $base"
+            continue
+        } ;;
+    esac
+    if [ -n "$upstream" ] && [ "$track" != "[gone]" ] \
+        && ! git merge-base --is-ancestor "$upstream" "$tip" && ! in_base "$upstream" >/dev/null; then
+        keep "branch $b" "${upstream#refs/remotes/} has commits not in $base"
+        continue
+    fi
+    # (a worktree whose folder is gone was pruned above)
+    if [ -n "$wt" ] && [ -d "$wt" ]; then
+        take_worktree "$wt" "branch $b, $why into $base" || continue
+    fi
+    act "branch $b" deleted "$why into $base" branch -D -q "$b"
+    case "$stashes" in
+        *$'\n'"WIP on $b:"*|*$'\n'"On $b:"*) printf '  %snote: stashes made on %s stay in the stash%s\n' "$dim" "$b" "$reset" ;;
+    esac
+done < <(git for-each-ref \
+    --format='%(refname:short)%1f%(objectname)%1f%(upstream)%1f%(upstream:track)%1f%(worktreepath)' refs/heads)
+
+# Detached worktrees whose HEAD is in the base.
+for ((k = 1; k < ${#wt_paths[@]}; k++)); do
+    if [ -n "${wt_branches[k]}" ] || [ -n "${wt_prunable[k]}" ]; then continue; fi
+    if why=$(in_base "${wt_heads[k]}"); then
+        take_worktree "${wt_paths[k]}" "detached, $why into $base"
+    elif [ -n "$verbose" ]; then
+        say "$dim" keep "worktree $(rel "${wt_paths[k]}")" "detached at a commit not in $base"
+    fi
+done
+
+[ -n "$dry_run" ] && [ $((removed + kept)) -eq 0 ] && printf '  %snothing to remove%s\n' "$dim" "$reset"
+[ "$failed" -gt 0 ] && exit 1
+[ -n "$check" ] && [ "$removed" -gt 0 ] && exit 1
+exit 0

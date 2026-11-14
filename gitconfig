@@ -54,9 +54,9 @@
     reset-hard-origin = !git fetch && git reset --hard '@{upstream}'
     sb = squash-branch
     squash-branch = !git reset --soft $(git merge-base main HEAD) && git commit -m squash-onto-main
-    cob = clean-old-branches
-    clear-old-branches = !git clean-old-branches
-    clean-old-branches = !git branch --merged main | grep -vE '^[*]|main|master' | xargs -n 1 git branch -d
+    cob = tidy
+    clear-old-branches = tidy
+    clean-old-branches = tidy
     gwc = diff --stat main...HEAD
 [core]
     excludesfile = ~/.gitignore_global

@@ -87,10 +87,11 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 # descends into them. Virtualenvs dominate: worktrees can carry several
 # .venv-<name> dirs of ~12k directories each, and over ~/Code BSD find takes
 # 5 minutes without these and 22s with them, for the same repos. .archive holds
-# retired clones that a sync should leave alone. Entries are find -name
+# retired clones that a sync should leave alone, and .build SwiftPM's checkouts
+# of a package's dependencies. Entries are find -name
 # globs. Override with GIT_EXEC_PRUNE='name1 name2', or GIT_EXEC_PRUNE= to walk
 # everything.
-PRUNE="${GIT_EXEC_PRUNE-node_modules __pycache__ .venv* venv site-packages .tox target .mypy_cache .pytest_cache .ruff_cache .archive}"
+PRUNE="${GIT_EXEC_PRUNE-node_modules __pycache__ .venv* venv site-packages .tox target .mypy_cache .pytest_cache .ruff_cache .archive .build}"
 
 prune_args=()
 if [ -n "$PRUNE" ]; then
@@ -178,6 +179,11 @@ for dotgit in "${repos[@]}"; do
 done
 echo
 
+# Where this run started, for commands that cover a whole repo from any of its
+# worktrees: git tidy run in a linked worktree defers to the main checkout's turn.
+GIT_EXEC_ROOT=$(pwd -P)
+export GIT_EXEC_ROOT
+
 status=0
 failed=()
 n=0
@@ -187,6 +193,12 @@ for dotgit in "${repos[@]}"; do
     label="$(label_of "$dotgit")"
 
     n=$((n + 1))
+    # Gone since the list was made: a worktree an earlier repo's command
+    # removed, as `git exec git tidy` does. Not a failure.
+    if [ ! -e "$dotgit" ]; then
+        printf '%s[%d/%d] %s (gone)%s\n' "$dim" "$n" "$total" "$label" "$reset"
+        continue
+    fi
     printf '%s[%d/%d]%s %s%s%s\n' "$dim" "$n" "$total" "$reset" "$cyan" "$label" "$reset"
 
     if [ "$#" -eq 1 ]; then

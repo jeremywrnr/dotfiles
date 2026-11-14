@@ -16,6 +16,7 @@ adding a file here adds a command — no symlinking, no re-running `install.sh`.
 | `brewup` | upgrade Homebrew without compiling: bottles and native casks only, each step skipped when there is nothing to do (`--all` for everything); no `brew bundle cleanup` without `../machines/Brewfile` beside the repo |
 | `brew-bottled` | list the outdated Homebrew packages that install prebuilt; what `brewup` upgrades, and with `-v` why the rest are held back |
 | `git-exec` | run a command in every git repo below the cwd, listing them all first and naming each as it runs (`cd ~/Code && git exec 'pwd && git up'`; `git exec -n` to only list); faster with `bfs` installed |
+| `git-tidy` | remove the repo's local branches and worktrees whose work is already in the default branch, squash merges included (`git tidy`; `-n` or `-c` to only list; every repo: `cd ~/Code && git exec git tidy`). Keeps any worktree with uncommitted files, a lock, a rebase or merge under way, a process working in it or less than a day old, and a branch with anything upstream that isn't merged; never deletes on a remote. The old `git cob` alias now runs it |
 
 `conv` and `to-mp4` need `ffmpeg` and ImageMagick; `set-media-date` needs
 `exiftool`. Camera raw (`.ARW`, `.CR2`, `.NEF`, ...) goes through `sips` on
