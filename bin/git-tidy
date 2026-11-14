@@ -26,11 +26,11 @@
 # A worktree on such a branch (or a detached one whose HEAD passes) goes with
 # it, but only if it is clean (no changed or untracked files; ignored ones like
 # node_modules don't count), not locked, not in the middle of a rebase, merge,
-# cherry-pick, revert or bisect, more than a day old (one just started has
-# nothing committed yet), and no process has its cwd inside it: that keeps a
+# cherry-pick, revert or bisect, and no process has its cwd inside it: that keeps a
 # running shell or Claude session's worktree, and the one tidy runs in. A kept
 # worktree is listed with the reason, and its branch stays too. Never touched:
-# the default branch, and whatever the main checkout has out.
+# the default branch, whatever the main checkout has out, and a branch (or a
+# detached worktree) made in the last day with nothing committed on it yet.
 #
 # `git worktree remove` runs without --force, so git refuses anything dirty or
 # locked whatever this script thought; branches go with `branch -D`, since a
@@ -155,9 +155,24 @@ in_use() {
 }
 
 now=$(date +%s)
+# Whether ref $1 (in the worktree at $2, else the main checkout) is just started: made in the last
+# day, with no commit, merge, cherry-pick or revert in its reflog since. A branch for a worktree
+# being set up has nothing of its own yet, so it passes the merge test trivially; a pull or a
+# rebase onto a newer base doesn't count as starting.
+unstarted() {
+    local log born
+    log=$(git -C "${2:-$root}" reflog show --date=unix --format='%gd %gs' "$1" 2>/dev/null)
+    [ -n "$log" ] || return 1
+    case "$log" in *"} commit"*|*"} merge"*|*"} cherry-pick"*|*"} revert"*) return 1 ;; esac
+    # the oldest entry is the last line: "<ref>@{<unix time>} <subject>"
+    born="${log##*@\{}"
+    born="${born%%\}*}"
+    [ "$born" -eq "$born" ] 2>/dev/null && [ $((now - born)) -lt 86400 ]
+}
+
 # Why worktree $1 can't go; nothing if it can.
 blocked() {
-    local gitdir n born who f
+    local gitdir n who f
     gitdir=$(git -C "$1" rev-parse --absolute-git-dir 2>/dev/null) || { echo "unreadable"; return; }
     [ -f "$gitdir/locked" ] && { echo "locked"; return; }
     if [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then echo "rebase in progress"; return; fi
@@ -166,14 +181,6 @@ blocked() {
     done
     n=$(git -C "$1" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
     [ "$n" -gt 0 ] && { echo "$n uncommitted file(s)"; return; }
-    # Its HEAD's first reflog entry, "HEAD@{<unix time>}": when it was made.
-    born=$(git -C "$1" reflog show --date=unix --format=%gd HEAD 2>/dev/null | tail -1)
-    born="${born##*@\{}"
-    born="${born%\}}"
-    if [ "$born" -eq "$born" ] 2>/dev/null && [ $((now - born)) -lt 86400 ]; then
-        echo "made in the last day"
-        return
-    fi
     who=$(in_use "$1")
     [ -n "$who" ] && echo "in use by $who"
 }
@@ -243,6 +250,10 @@ while IFS=$'\037' read -r b tip upstream track wt; do
         [ -n "$verbose" ] && say "$dim" keep "branch $b" "the main checkout has it out"
         continue
     fi
+    if unstarted "refs/heads/$b"; then
+        [ -n "$verbose" ] && say "$dim" keep "branch $b" "made today, nothing committed on it yet"
+        continue
+    fi
     case "$merged" in
         *$'\n'"$b"$'\n'*) why=merged ;;
         *) why=$(in_base "$tip") || {
@@ -269,7 +280,9 @@ done < <(git for-each-ref \
 # Detached worktrees whose HEAD is in the base.
 for ((k = 1; k < ${#wt_paths[@]}; k++)); do
     if [ -n "${wt_branches[k]}" ] || [ -n "${wt_prunable[k]}" ]; then continue; fi
-    if why=$(in_base "${wt_heads[k]}"); then
+    if unstarted HEAD "${wt_paths[k]}"; then
+        [ -n "$verbose" ] && say "$dim" keep "worktree $(rel "${wt_paths[k]}")" "made today, nothing committed in it yet"
+    elif why=$(in_base "${wt_heads[k]}"); then
         take_worktree "${wt_paths[k]}" "detached, $why into $base"
     elif [ -n "$verbose" ]; then
         say "$dim" keep "worktree $(rel "${wt_paths[k]}")" "detached at a commit not in $base"
