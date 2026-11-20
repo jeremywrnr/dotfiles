@@ -2,7 +2,7 @@
 [[ "$OSTYPE" == linux* ]] || return 0
 
 alias brew="sudo apt-get"
-alias brewup="sudo apt-get update && sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && { ! command -v snap >/dev/null || sudo snap refresh; }"
+alias brewup="sudo apt-get update && sudo apt-get dist-upgrade -y && sudo apt-get autoremove -y && sudo apt-get autoclean && { ! command -v snap >/dev/null || sudo snap refresh; } && { ! command -v uv >/dev/null || uv tool upgrade --all; }"
 
 # An ssh login arrives with this unset, and an unset value means the spec's
 # default. Setting it to only the flatpak dirs would drop that default and hide

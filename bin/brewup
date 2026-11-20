@@ -20,6 +20,9 @@
 # startup, and these shells live for days, so an edit here never reached them
 # -- one went on running a plain `brew upgrade` and compiling for hours.
 #
+# Then uv's tools (install.sh's uv_tool), which are PyPI wheels and build
+# nothing either.
+#
 #   brewup          bottles and native casks only
 #   brewup --all    the old everything-goes upgrade, source builds and all
 
@@ -112,6 +115,10 @@ main() {
     if (( $#casks )); then
       brew upgrade --yes --cask $casks || return
     fi
+  fi
+
+  if command -v uv >/dev/null; then
+    uv tool upgrade --all || print -u2 "brewup: uv tool upgrade failed"
   fi
 
   # Without the private Brewfile, everything it lists looks unwanted, and

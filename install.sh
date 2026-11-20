@@ -1139,6 +1139,23 @@ fetch_bin fnm https://fnm.vercel.app/install \
 # .profile -- the first two symlinks into this repo -- and seeds a fish config.
 # zsh/ and bashrc already put ~/.local/bin on PATH, so that is never needed.
 fetch_bin uv https://astral.sh/uv/install.sh env UV_NO_MODIFY_PATH=1 sh
+# uv tools, from PyPI's wheels: nothing to build, and brewup upgrades them.
+# yt-dlp with curl-cffi, for --impersonate, which brew's formula leaves out.
+# $1: command. $2: what uv installs. Skipped when uv already has the tool.
+uv_tool() {
+  local uv
+  uv=$(command -v uv || echo "$HOME/.local/bin/uv")
+  if [ ! -x "$uv" ]; then
+    echo "  WARNING: no uv, so no $1"
+  elif "$uv" tool list 2>/dev/null | grep -q "^$1 "; then
+    echo "  ok: $("$uv" tool list 2>/dev/null | grep "^$1 ")"
+  elif "$uv" tool install --quiet "$2"; then
+    echo "  installed: $1"
+  else
+    echo "  WARNING: $1 install failed"
+  fi
+}
+uv_tool yt-dlp 'yt-dlp[default,curl-cffi]'
 fetch_bin zoxide https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh \
   sh -s -- --bin-dir "$HOME/.local/bin"
 # herdr: its installer reads the same manifest as `herdr update`, so the two agree.
