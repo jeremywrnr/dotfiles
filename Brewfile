@@ -51,7 +51,8 @@ brew "imagemagick"
 brew "exiftool"
 brew "rdfind"
 brew "libheif"
-brew "yt-dlp"
+# yt-dlp is a uv tool instead (install.sh), for the curl-cffi extra and for
+# releases the day they ship: it warns once its copy is 90 days old.
 # unar, not unrar: homebrew-core dropped the unrar formula (its source is not
 # open enough for the license terms brew requires). unar reads rar all the same.
 brew "unar"
