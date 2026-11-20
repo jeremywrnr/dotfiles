@@ -29,7 +29,9 @@ alias vi="vim"
 alias vimup="\vim +PlugInstall +PlugUpdate +PlugUpgrade +qa"
 alias timezsh="for i in {1..5}; do /usr/bin/time /bin/zsh -i -c exit; done 2>&1 | grep real"
 alias tmux-refresh="tmux source-file ~/.tmux.conf && tmux refresh-client"
-alias ytdl="yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4'"
+# The best video, AV1 first (at 4K YouTube offers only AV1 or VP9, and AV1 is the smaller), with m4a audio, in an mp4.
+# Without an AV1 copy, the best mp4, then whatever is best.
+alias ytdl="yt-dlp -f 'bv*[vcodec^=av01]+ba[ext=m4a]/bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b' --merge-output-format mp4"
 
 # Duplicate files (rdfind). Look before you delete.
 alias dupes="rdfind -dryrun true ."
