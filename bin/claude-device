@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# claude-device: is this Mac reachable as a "local device" for claude.ai chats?
+#
+#   claude-device [-n N]
+#
+# The Claude desktop app links the Mac to your account (claude.ai → Settings →
+# Account → Local devices), so a chat on the web or phone can use its files,
+# shell, browser and apps. This reads the app's own config and log, without
+# touching either, and reports what decides whether a chat can reach it: the
+# device name, whether the app runs, the bridge connection, and sleep.
+#
+#   -n N   also print the last N device-link log lines (default 0)
+#
+# Notes:
+# - A chat appears to stay on the device it was started with (its device menu
+#   offers no switch). Start a new chat and pick the device first.
+# - A device-backed chat can't read files or run commands until a folder is
+#   connected in that chat (its + menu, or ask it to request access).
+# - The app has to be running in a logged-in GUI session. After a restart
+#   without auto-login nothing links until someone logs in.
+# - Works over ssh too (`ssh HOST ~/Code/dotfiles/bin/claude-device`).
+set -euo pipefail
+
+lines=0
+while getopts n: opt; do
+  case $opt in
+    n) lines=$OPTARG ;;
+    *) sed -n '3,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  esac
+done
+
+[ "$(uname)" = Darwin ] || { echo "claude-device: macOS only" >&2; exit 2; }
+
+support="$HOME/Library/Application Support/Claude"
+log="$HOME/Library/Logs/Claude/main.log"
+cfg="$support/claude_desktop_config.json"
+app=/Applications/Claude.app
+tag='[remote-tools-device]'
+
+row() { printf '%-14s %s\n' "$1" "$2"; }
+
+# Device name and keep-awake, as the app's settings have them.
+if [ -f "$cfg" ] && command -v jq >/dev/null; then
+  name=$(jq -r '.preferences.remoteToolsDeviceName // "(not set)"' "$cfg")
+  awake=$(jq -r '.preferences.keepAwakeEnabled // "(not set)"' "$cfg")
+else
+  name="(no app config)"; awake="?"
+fi
+row device "$name  (claude.ai lists it by computer name: $(scutil --get ComputerName))"
+
+if [ -d "$app" ]; then
+  ver=$(defaults read "$app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo '?')
+else
+  ver="not installed"
+fi
+# ps, not pgrep: pgrep sees nothing from inside Claude Code's sandbox. No
+# `rg -q`: it exits at the first match, ps gets SIGPIPE, and pipefail fails it.
+if ps -axo comm= | rg -xF "$app/Contents/MacOS/Claude" >/dev/null; then run="running"; else run="NOT running"; fi
+row app "$run, $ver"
+
+# Bridge state: the last connect/close event decides it.
+if [ -f "$log" ]; then
+  last=$(rg -F "$tag" "$log" | rg 'authenticated|socket closed|\] close$|connecting wss' | tail -1 || true)
+  served=$(rg -F "$tag" "$log" | rg 'served ' | tail -1 | cut -c1-19 || true)
+  case $last in
+    *authenticated*) state="connected since ${last:0:19}" ;;
+    *connecting*)    state="connecting (${last:0:19})" ;;
+    "")              state="no device-link activity in the log (feature off, or not signed in)" ;;
+    *)               state="DISCONNECTED: ${last:0:19} ${last##*"$tag" }" ;;
+  esac
+  [ "$run" = "NOT running" ] && state="DISCONNECTED (app not running; last log: ${last:0:19})"
+  row bridge "$state"
+  row "last request" "${served:-none in this log}"
+else
+  row bridge "no log at $log"
+fi
+
+# Sleep: the app holds the Mac awake only while a chat is using it.
+src=$(pmset -g batt | head -1 | sed -E "s/.*'(.*)'.*/\1/")
+acsleep=$(pmset -g custom | awk '/^AC Power/{s=1} s && $1=="sleep"{print $2; exit}')
+batsleep=$(pmset -g custom | awk '/^Battery Power/{s=1} s && $1=="sleep"{print $2; exit}')
+row power "$src; idle sleep after ${acsleep:-?} min on AC, ${batsleep:-?} on battery (0 = never)"
+row keep-awake "app setting $awake (holds only while Claude works; a closed lid still sleeps)"
+row up "$(uptime | sed -E 's/.*up +//; s/, +[0-9]+ users?.*//')"
+
+if [ "$lines" -gt 0 ] && [ -f "$log" ]; then
+  echo
+  rg -F "$tag" "$log" | tail -n "$lines" | cut -c1-200
+fi
